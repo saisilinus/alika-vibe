@@ -55,7 +55,16 @@ const adminApi = apiWithAdminTags.injectEndpoints({
         url: "admin/stats",
         method: "GET",
       }),
-      providesTags: ["AdminStats"],
+      providesTags: (result) =>
+        result?.recentCampaigns
+          ? [
+              ...result.recentCampaigns.map(({ _id }) => ({
+                type: "Campaign" as const,
+                id: _id?.toString(),
+              })),
+              "AdminStats",
+            ]
+          : ["AdminStats"],
     }),
 
     getAdminUsers: builder.query<AdminUsersResponse, { page?: number; limit?: number; search?: string }>({
@@ -69,7 +78,7 @@ const adminApi = apiWithAdminTags.injectEndpoints({
           ? [
               ...result.users.map(({ _id }) => ({
                 type: "AdminUsers" as const,
-                id: _id,
+                id: _id?.toString(),
               })),
               { type: "AdminUsers", id: "PARTIAL-USERS-LIST" },
             ]
@@ -87,7 +96,7 @@ const adminApi = apiWithAdminTags.injectEndpoints({
           ? [
               ...result.campaigns.map(({ _id }) => ({
                 type: "AdminCampaigns" as const,
-                id: _id,
+                id: _id?.toString(),
               })),
               { type: "AdminCampaigns", id: "PARTIAL-ADMIN-CAMPAIGNS-LIST" },
             ]

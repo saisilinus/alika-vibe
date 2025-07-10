@@ -36,7 +36,7 @@ const generatedBannerApi = apiWithGeneratedBannerTags.injectEndpoints({
           ? [
               ...result.banners.map(({ _id }) => ({
                 type: "GeneratedBanner" as const,
-                id: _id,
+                id: _id?.toString(),
               })),
               { type: "GeneratedBanner", id: "PARTIAL-BANNER-LIST" },
             ]
@@ -48,7 +48,8 @@ const generatedBannerApi = apiWithGeneratedBannerTags.injectEndpoints({
         url: `generated-banners/${id}`,
         method: "GET",
       }),
-      providesTags: (result) => (result ? [{ type: "GeneratedBanner", id: result._id }] : ["GeneratedBanner"]),
+      providesTags: (result) =>
+        result ? [{ type: "GeneratedBanner", id: result._id?.toString() }] : ["GeneratedBanner"],
     }),
 
     getUserGeneratedBanners: builder.query<GeneratedBannerResponse, { page?: number; limit?: number }>({
@@ -57,7 +58,16 @@ const generatedBannerApi = apiWithGeneratedBannerTags.injectEndpoints({
         method: "GET",
         params,
       }),
-      providesTags: [{ type: "GeneratedBanner", id: "USER-BANNERS" }],
+      providesTags: (result) =>
+        result?.banners
+          ? [
+              ...result.banners.map(({ _id }) => ({
+                type: "GeneratedBanner" as const,
+                id: _id?.toString(),
+              })),
+              { type: "GeneratedBanner", id: "USER-BANNERS" },
+            ]
+          : [{ type: "GeneratedBanner", id: "USER-BANNERS" }],
     }),
 
     createGeneratedBanner: builder.mutation<

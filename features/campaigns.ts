@@ -59,7 +59,7 @@ const campaignApi = apiWithCampaignTags.injectEndpoints({
           ? [
               ...result.campaigns.map(({ _id }) => ({
                 type: "Campaign" as const,
-                id: _id,
+                id: _id?.toString(),
               })),
               { type: "Campaign", id: "PARTIAL-CAMPAIGN-LIST" },
             ]
@@ -71,7 +71,16 @@ const campaignApi = apiWithCampaignTags.injectEndpoints({
         url: "campaigns/trending",
         method: "GET",
       }),
-      providesTags: [{ type: "Campaign", id: "TRENDING-LIST" }],
+      providesTags: (result) =>
+        result?.campaigns
+          ? [
+              ...result.campaigns.map(({ _id }) => ({
+                type: "Campaign" as const,
+                id: _id?.toString(),
+              })),
+              { type: "Campaign", id: "TRENDING-LIST" },
+            ]
+          : [{ type: "Campaign", id: "TRENDING-LIST" }],
     }),
 
     getLatestCampaigns: builder.query<{ campaigns: Campaign[] }, void>({
@@ -79,7 +88,16 @@ const campaignApi = apiWithCampaignTags.injectEndpoints({
         url: "campaigns/latest",
         method: "GET",
       }),
-      providesTags: [{ type: "Campaign", id: "LATEST-LIST" }],
+      providesTags: (result) =>
+        result?.campaigns
+          ? [
+              ...result.campaigns.map(({ _id }) => ({
+                type: "Campaign" as const,
+                id: _id?.toString(),
+              })),
+              { type: "Campaign", id: "LATEST-LIST" },
+            ]
+          : [{ type: "Campaign", id: "LATEST-LIST" }],
     }),
 
     getCampaignById: builder.query<CampaignDetailsResponse, string>({
@@ -87,7 +105,7 @@ const campaignApi = apiWithCampaignTags.injectEndpoints({
         url: `campaigns/${id}`,
         method: "GET",
       }),
-      providesTags: (result) => (result ? [{ type: "Campaign", id: result.campaign._id }] : ["Campaign"]),
+      providesTags: (result) => (result ? [{ type: "Campaign", id: result.campaign._id?.toString() }] : ["Campaign"]),
     }),
 
     createCampaign: builder.mutation<{ success: boolean; campaignId: string }, CreateCampaignRequest>({

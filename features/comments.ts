@@ -48,7 +48,7 @@ const commentApi = apiWithCommentTags.injectEndpoints({
           ? [
               ...result.comments.map(({ _id }) => ({
                 type: "Comment" as const,
-                id: _id,
+                id: _id?.toString(),
               })),
               { type: "Comment", id: `CAMPAIGN-${campaignId}` },
             ]
