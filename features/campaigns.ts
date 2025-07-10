@@ -1,11 +1,14 @@
 import api from "./api"
-import type { Campaign } from "@/lib/types"
+import type { Campaign, GeneratedBanner } from "@/lib/types"
 
 export interface CampaignQueryParams {
   page?: number
   limit?: number
   category?: string
   search?: string
+  tags?: string[]
+  sortBy?: "createdAt" | "viewCount" | "downloadCount"
+  sortOrder?: "asc" | "desc"
 }
 
 export interface CampaignResponse {
@@ -18,25 +21,12 @@ export interface CampaignResponse {
   }
 }
 
-export interface CampaignDetailsResponse {
-  campaign: Campaign
-  comments: Array<{
-    _id: string
-    content: string
-    createdAt: string
-    user: {
-      name: string
-      image?: string
-    }
-  }>
-}
-
 export interface CreateCampaignRequest {
   title: string
   description: string
   imageUrl: string
   category: string
-  tags?: string[]
+  tags: string[]
   templateData?: {
     width: number
     height: number
@@ -44,7 +34,23 @@ export interface CreateCampaignRequest {
   }
 }
 
-const apiWithCampaignTags = api.enhanceEndpoints({ addTagTypes: ["Campaign"] })
+export interface GenerateBannerRequest {
+  campaignId: string
+  customizations: {
+    text?: string
+    colors?: string[]
+    fonts?: string[]
+  }
+}
+
+export interface GenerateBannerResponse {
+  banner: GeneratedBanner
+  imageUrl: string
+}
+
+const apiWithCampaignTags = api.enhanceEndpoints({
+  addTagTypes: ["Campaign"],
+})
 
 const campaignApi = apiWithCampaignTags.injectEndpoints({
   endpoints: (builder) => ({
@@ -66,49 +72,51 @@ const campaignApi = apiWithCampaignTags.injectEndpoints({
           : [{ type: "Campaign", id: "PARTIAL-CAMPAIGN-LIST" }],
     }),
 
-    getTrendingCampaigns: builder.query<{ campaigns: Campaign[] }, void>({
-      query: () => ({
+    getTrendingCampaigns: builder.query<Campaign[], { limit?: number }>({
+      query: (params) => ({
         url: "campaigns/trending",
         method: "GET",
+        params,
       }),
       providesTags: (result) =>
-        result?.campaigns
+        result
           ? [
-              ...result.campaigns.map(({ _id }) => ({
+              ...result.map(({ _id }) => ({
                 type: "Campaign" as const,
                 id: _id?.toString(),
               })),
-              { type: "Campaign", id: "TRENDING-LIST" },
+              { type: "Campaign", id: "TRENDING-CAMPAIGNS" },
             ]
-          : [{ type: "Campaign", id: "TRENDING-LIST" }],
+          : [{ type: "Campaign", id: "TRENDING-CAMPAIGNS" }],
     }),
 
-    getLatestCampaigns: builder.query<{ campaigns: Campaign[] }, void>({
-      query: () => ({
+    getLatestCampaigns: builder.query<Campaign[], { limit?: number }>({
+      query: (params) => ({
         url: "campaigns/latest",
         method: "GET",
+        params,
       }),
       providesTags: (result) =>
-        result?.campaigns
+        result
           ? [
-              ...result.campaigns.map(({ _id }) => ({
+              ...result.map(({ _id }) => ({
                 type: "Campaign" as const,
                 id: _id?.toString(),
               })),
-              { type: "Campaign", id: "LATEST-LIST" },
+              { type: "Campaign", id: "LATEST-CAMPAIGNS" },
             ]
-          : [{ type: "Campaign", id: "LATEST-LIST" }],
+          : [{ type: "Campaign", id: "LATEST-CAMPAIGNS" }],
     }),
 
-    getCampaignById: builder.query<CampaignDetailsResponse, string>({
+    getCampaignById: builder.query<Campaign, string>({
       query: (id) => ({
         url: `campaigns/${id}`,
         method: "GET",
       }),
-      providesTags: (result) => (result ? [{ type: "Campaign", id: result.campaign._id?.toString() }] : ["Campaign"]),
+      providesTags: (result) => (result ? [{ type: "Campaign", id: result._id?.toString() }] : ["Campaign"]),
     }),
 
-    createCampaign: builder.mutation<{ success: boolean; campaignId: string }, CreateCampaignRequest>({
+    createCampaign: builder.mutation<Campaign, CreateCampaignRequest>({
       query: (body) => ({
         url: "campaigns",
         method: "POST",
@@ -116,32 +124,29 @@ const campaignApi = apiWithCampaignTags.injectEndpoints({
       }),
       invalidatesTags: [
         { type: "Campaign", id: "PARTIAL-CAMPAIGN-LIST" },
-        { type: "Campaign", id: "TRENDING-LIST" },
-        { type: "Campaign", id: "LATEST-LIST" },
+        { type: "Campaign", id: "TRENDING-CAMPAIGNS" },
+        { type: "Campaign", id: "LATEST-CAMPAIGNS" },
       ],
     }),
 
     incrementCampaignViews: builder.mutation<{ success: boolean }, string>({
-      query: (id) => ({
-        url: `campaigns/${id}/view`,
+      query: (campaignId) => ({
+        url: `campaigns/${campaignId}/view`,
         method: "POST",
       }),
-      invalidatesTags: (_result, _error, id) => [
-        { type: "Campaign", id },
-        { type: "Campaign", id: "TRENDING-LIST" },
+      invalidatesTags: (_result, _error, campaignId) => [
+        { type: "Campaign", id: campaignId },
+        { type: "Campaign", id: "TRENDING-CAMPAIGNS" },
       ],
     }),
 
-    generateBanner: builder.mutation<
-      { success: boolean; bannerId: string; imageUrl: string },
-      { campaignId: string; customizations: Record<string, any> }
-    >({
+    generateBanner: builder.mutation<GenerateBannerResponse, GenerateBannerRequest>({
       query: ({ campaignId, customizations }) => ({
         url: `campaigns/${campaignId}/generate`,
         method: "POST",
         body: { customizations },
       }),
-      invalidatesTags: (_result, _error, { campaignId }) => [{ type: "Campaign", id: campaignId }, "GeneratedBanner"],
+      invalidatesTags: (_result, _error, { campaignId }) => [{ type: "Campaign", id: campaignId }],
     }),
   }),
 })

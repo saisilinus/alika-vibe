@@ -55,16 +55,7 @@ const adminApi = apiWithAdminTags.injectEndpoints({
         url: "admin/stats",
         method: "GET",
       }),
-      providesTags: (result) =>
-        result?.recentCampaigns
-          ? [
-              ...result.recentCampaigns.map(({ _id }) => ({
-                type: "Campaign" as const,
-                id: _id?.toString(),
-              })),
-              "AdminStats",
-            ]
-          : ["AdminStats"],
+      providesTags: ["AdminStats"],
     }),
 
     getAdminUsers: builder.query<AdminUsersResponse, { page?: number; limit?: number; search?: string }>({
@@ -125,8 +116,6 @@ const adminApi = apiWithAdminTags.injectEndpoints({
       invalidatesTags: (_result, _error, { campaignId }) => [
         { type: "AdminCampaigns", id: campaignId },
         { type: "AdminCampaigns", id: "PARTIAL-ADMIN-CAMPAIGNS-LIST" },
-        { type: "Campaign", id: campaignId },
-        { type: "Campaign", id: "PARTIAL-CAMPAIGN-LIST" },
         "AdminStats",
       ],
     }),
@@ -139,8 +128,6 @@ const adminApi = apiWithAdminTags.injectEndpoints({
       invalidatesTags: (_result, _error, campaignId) => [
         { type: "AdminCampaigns", id: campaignId },
         { type: "AdminCampaigns", id: "PARTIAL-ADMIN-CAMPAIGNS-LIST" },
-        { type: "Campaign", id: campaignId },
-        { type: "Campaign", id: "PARTIAL-CAMPAIGN-LIST" },
         "AdminStats",
       ],
     }),
@@ -154,8 +141,6 @@ const adminApi = apiWithAdminTags.injectEndpoints({
       invalidatesTags: (_result, _error, { campaignId }) => [
         { type: "AdminCampaigns", id: campaignId },
         { type: "AdminCampaigns", id: "PARTIAL-ADMIN-CAMPAIGNS-LIST" },
-        { type: "Campaign", id: campaignId },
-        { type: "Campaign", id: "PARTIAL-CAMPAIGN-LIST" },
         "AdminStats",
       ],
     }),

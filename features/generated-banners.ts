@@ -1,6 +1,15 @@
 import api from "./api"
 import type { GeneratedBanner } from "@/lib/types"
 
+export interface GeneratedBannerQueryParams {
+  page?: number
+  limit?: number
+  userId?: string
+  campaignId?: string
+  sortBy?: "createdAt" | "downloadCount"
+  sortOrder?: "asc" | "desc"
+}
+
 export interface GeneratedBannerResponse {
   banners: GeneratedBanner[]
   pagination: {
@@ -13,19 +22,34 @@ export interface GeneratedBannerResponse {
 
 export interface CreateGeneratedBannerRequest {
   campaignId: string
-  customizations: Record<string, any>
+  customizations: {
+    text?: string
+    colors?: string[]
+    fonts?: string[]
+  }
 }
 
 export interface UpdateGeneratedBannerRequest {
   bannerId: string
-  customizations: Record<string, any>
+  customizations: {
+    text?: string
+    colors?: string[]
+    fonts?: string[]
+  }
 }
 
-const apiWithGeneratedBannerTags = api.enhanceEndpoints({ addTagTypes: ["GeneratedBanner"] })
+export interface ShareGeneratedBannerRequest {
+  bannerId: string
+  isPublic: boolean
+}
+
+const apiWithGeneratedBannerTags = api.enhanceEndpoints({
+  addTagTypes: ["GeneratedBanner"],
+})
 
 const generatedBannerApi = apiWithGeneratedBannerTags.injectEndpoints({
   endpoints: (builder) => ({
-    getGeneratedBanners: builder.query<GeneratedBannerResponse, { page?: number; limit?: number; userId?: string }>({
+    getGeneratedBanners: builder.query<GeneratedBannerResponse, GeneratedBannerQueryParams>({
       query: (params) => ({
         url: "generated-banners",
         method: "GET",
@@ -43,18 +67,9 @@ const generatedBannerApi = apiWithGeneratedBannerTags.injectEndpoints({
           : [{ type: "GeneratedBanner", id: "PARTIAL-BANNER-LIST" }],
     }),
 
-    getGeneratedBannerById: builder.query<GeneratedBanner, string>({
-      query: (id) => ({
-        url: `generated-banners/${id}`,
-        method: "GET",
-      }),
-      providesTags: (result) =>
-        result ? [{ type: "GeneratedBanner", id: result._id?.toString() }] : ["GeneratedBanner"],
-    }),
-
-    getUserGeneratedBanners: builder.query<GeneratedBannerResponse, { page?: number; limit?: number }>({
-      query: (params) => ({
-        url: "generated-banners/user",
+    getUserGeneratedBanners: builder.query<GeneratedBannerResponse, { userId: string } & GeneratedBannerQueryParams>({
+      query: ({ userId, ...params }) => ({
+        url: `users/${userId}/generated-banners`,
         method: "GET",
         params,
       }),
@@ -65,15 +80,12 @@ const generatedBannerApi = apiWithGeneratedBannerTags.injectEndpoints({
                 type: "GeneratedBanner" as const,
                 id: _id?.toString(),
               })),
-              { type: "GeneratedBanner", id: "USER-BANNERS" },
+              { type: "GeneratedBanner", id: "USER-BANNER-LIST" },
             ]
-          : [{ type: "GeneratedBanner", id: "USER-BANNERS" }],
+          : [{ type: "GeneratedBanner", id: "USER-BANNER-LIST" }],
     }),
 
-    createGeneratedBanner: builder.mutation<
-      { success: boolean; bannerId: string; imageUrl: string },
-      CreateGeneratedBannerRequest
-    >({
+    createGeneratedBanner: builder.mutation<GeneratedBanner, CreateGeneratedBannerRequest>({
       query: (body) => ({
         url: "generated-banners",
         method: "POST",
@@ -81,11 +93,11 @@ const generatedBannerApi = apiWithGeneratedBannerTags.injectEndpoints({
       }),
       invalidatesTags: [
         { type: "GeneratedBanner", id: "PARTIAL-BANNER-LIST" },
-        { type: "GeneratedBanner", id: "USER-BANNERS" },
+        { type: "GeneratedBanner", id: "USER-BANNER-LIST" },
       ],
     }),
 
-    updateGeneratedBanner: builder.mutation<{ success: boolean }, UpdateGeneratedBannerRequest>({
+    updateGeneratedBanner: builder.mutation<GeneratedBanner, UpdateGeneratedBannerRequest>({
       query: ({ bannerId, customizations }) => ({
         url: `generated-banners/${bannerId}`,
         method: "PATCH",
@@ -94,7 +106,7 @@ const generatedBannerApi = apiWithGeneratedBannerTags.injectEndpoints({
       invalidatesTags: (_result, _error, { bannerId }) => [
         { type: "GeneratedBanner", id: bannerId },
         { type: "GeneratedBanner", id: "PARTIAL-BANNER-LIST" },
-        { type: "GeneratedBanner", id: "USER-BANNERS" },
+        { type: "GeneratedBanner", id: "USER-BANNER-LIST" },
       ],
     }),
 
@@ -106,11 +118,11 @@ const generatedBannerApi = apiWithGeneratedBannerTags.injectEndpoints({
       invalidatesTags: (_result, _error, bannerId) => [
         { type: "GeneratedBanner", id: bannerId },
         { type: "GeneratedBanner", id: "PARTIAL-BANNER-LIST" },
-        { type: "GeneratedBanner", id: "USER-BANNERS" },
+        { type: "GeneratedBanner", id: "USER-BANNER-LIST" },
       ],
     }),
 
-    downloadGeneratedBanner: builder.mutation<{ success: boolean; downloadUrl: string }, string>({
+    downloadGeneratedBanner: builder.mutation<{ downloadUrl: string }, string>({
       query: (bannerId) => ({
         url: `generated-banners/${bannerId}/download`,
         method: "POST",
@@ -118,10 +130,7 @@ const generatedBannerApi = apiWithGeneratedBannerTags.injectEndpoints({
       invalidatesTags: (_result, _error, bannerId) => [{ type: "GeneratedBanner", id: bannerId }],
     }),
 
-    shareGeneratedBanner: builder.mutation<
-      { success: boolean; shareUrl: string },
-      { bannerId: string; isPublic: boolean }
-    >({
+    shareGeneratedBanner: builder.mutation<{ success: boolean }, ShareGeneratedBannerRequest>({
       query: ({ bannerId, isPublic }) => ({
         url: `generated-banners/${bannerId}/share`,
         method: "POST",
@@ -134,7 +143,6 @@ const generatedBannerApi = apiWithGeneratedBannerTags.injectEndpoints({
 
 export const {
   useGetGeneratedBannersQuery,
-  useGetGeneratedBannerByIdQuery,
   useGetUserGeneratedBannersQuery,
   useCreateGeneratedBannerMutation,
   useUpdateGeneratedBannerMutation,

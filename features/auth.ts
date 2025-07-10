@@ -18,28 +18,28 @@ export interface AuthResponse {
   refreshToken: string
 }
 
-export interface ProfileUpdateRequest {
+export interface UpdateProfileRequest {
   name?: string
   email?: string
-  bio?: string
-  avatar?: string
+  image?: string
 }
 
-export interface PasswordResetRequest {
+export interface ForgotPasswordRequest {
   email: string
 }
 
-export interface PasswordResetConfirmRequest {
+export interface ResetPasswordRequest {
   token: string
   password: string
 }
 
-export interface ChangePasswordRequest {
-  currentPassword: string
-  newPassword: string
+export interface VerifyEmailRequest {
+  token: string
 }
 
-const apiWithAuthTags = api.enhanceEndpoints({ addTagTypes: ["Auth", "User"] })
+const apiWithAuthTags = api.enhanceEndpoints({
+  addTagTypes: ["Auth", "User"],
+})
 
 const authApi = apiWithAuthTags.injectEndpoints({
   endpoints: (builder) => ({
@@ -49,7 +49,7 @@ const authApi = apiWithAuthTags.injectEndpoints({
         method: "POST",
         body: credentials,
       }),
-      invalidatesTags: ["Auth"],
+      invalidatesTags: ["Auth", "User"],
     }),
 
     register: builder.mutation<AuthResponse, RegisterRequest>({
@@ -58,7 +58,7 @@ const authApi = apiWithAuthTags.injectEndpoints({
         method: "POST",
         body: userData,
       }),
-      invalidatesTags: ["Auth"],
+      invalidatesTags: ["Auth", "User"],
     }),
 
     logout: builder.mutation<{ success: boolean }, void>({
@@ -77,7 +77,7 @@ const authApi = apiWithAuthTags.injectEndpoints({
       providesTags: (result) => (result ? [{ type: "User", id: result._id?.toString() }] : ["User"]),
     }),
 
-    updateProfile: builder.mutation<User, ProfileUpdateRequest>({
+    updateProfile: builder.mutation<User, UpdateProfileRequest>({
       query: (updates) => ({
         url: "auth/profile",
         method: "PATCH",
@@ -94,44 +94,29 @@ const authApi = apiWithAuthTags.injectEndpoints({
       }),
     }),
 
-    forgotPassword: builder.mutation<{ success: boolean; message: string }, PasswordResetRequest>({
-      query: (data) => ({
+    forgotPassword: builder.mutation<{ success: boolean }, ForgotPasswordRequest>({
+      query: (body) => ({
         url: "auth/forgot-password",
         method: "POST",
-        body: data,
+        body,
       }),
     }),
 
-    resetPassword: builder.mutation<{ success: boolean; message: string }, PasswordResetConfirmRequest>({
-      query: (data) => ({
+    resetPassword: builder.mutation<{ success: boolean }, ResetPasswordRequest>({
+      query: (body) => ({
         url: "auth/reset-password",
         method: "POST",
-        body: data,
+        body,
       }),
     }),
 
-    changePassword: builder.mutation<{ success: boolean; message: string }, ChangePasswordRequest>({
-      query: (data) => ({
-        url: "auth/change-password",
-        method: "POST",
-        body: data,
-      }),
-    }),
-
-    verifyEmail: builder.mutation<{ success: boolean; message: string }, { token: string }>({
-      query: ({ token }) => ({
+    verifyEmail: builder.mutation<{ success: boolean }, VerifyEmailRequest>({
+      query: (body) => ({
         url: "auth/verify-email",
         method: "POST",
-        body: { token },
+        body,
       }),
-      invalidatesTags: (result, error, { token }) => ["Auth", "User"],
-    }),
-
-    resendVerification: builder.mutation<{ success: boolean; message: string }, void>({
-      query: () => ({
-        url: "auth/resend-verification",
-        method: "POST",
-      }),
+      invalidatesTags: ["User"],
     }),
   }),
 })
@@ -145,9 +130,7 @@ export const {
   useRefreshTokenMutation,
   useForgotPasswordMutation,
   useResetPasswordMutation,
-  useChangePasswordMutation,
   useVerifyEmailMutation,
-  useResendVerificationMutation,
 } = authApi
 
 export default authApi
