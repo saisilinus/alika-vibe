@@ -3,11 +3,14 @@
 import type React from "react"
 
 import { useState } from "react"
+import { signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Eye, EyeOff } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useToast } from "@/hooks/use-toast"
+import { Mail, Chrome, Loader2 } from "lucide-react"
 
 interface AuthModalProps {
   isOpen: boolean
@@ -18,177 +21,181 @@ interface AuthModalProps {
 }
 
 export default function AuthModal({ isOpen, onClose, mode, onSuccess, onSwitchMode }: AuthModalProps) {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    confirmPassword: "",
-  })
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [email, setEmail] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const { toast } = useToast()
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    setError("")
 
-    // Basic validation
-    if (!formData.email || !formData.password) {
-      setError("Please fill in all fields")
-      setIsLoading(false)
-      return
-    }
-
-    if (mode === "register" && formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match")
-      setIsLoading(false)
-      return
-    }
-
-    // Simulate API call
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const result = await signIn("email", {
+        email,
+        redirect: false,
+      })
 
-      // Mock successful authentication
-      const userData = {
-        name: formData.email.split("@")[0],
-        email: formData.email,
-        avatar: "/placeholder.svg?height=32&width=32",
-        role: formData.email.includes("admin") ? "admin" : "user",
+      if (result?.error) {
+        toast({
+          variant: "destructive",
+          title: "Authentication Error",
+          description: "Failed to send magic link. Please try again.",
+        })
+      } else {
+        toast({
+          title: "Check your email!",
+          description: "We've sent you a magic link to sign in.",
+        })
+        onClose()
       }
-
-      onSuccess(userData)
-      setFormData({ email: "", password: "", confirmPassword: "" })
-    } catch (err) {
-      setError("Authentication failed. Please try again.")
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+      })
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-    if (error) setError("")
+  const handleGoogleAuth = async () => {
+    setIsGoogleLoading(true)
+
+    try {
+      const result = await signIn("google", {
+        redirect: false,
+        callbackUrl: "/",
+      })
+
+      if (result?.error) {
+        toast({
+          variant: "destructive",
+          title: "Google Sign-in Failed",
+          description: "Unable to sign in with Google. Please try again.",
+        })
+      } else if (result?.ok) {
+        toast({
+          title: "Welcome!",
+          description: "Successfully signed in with Google.",
+        })
+        onSuccess({ name: "User", avatar: "", role: "user" })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An unexpected error occurred during Google sign-in.",
+      })
+    } finally {
+      setIsGoogleLoading(false)
+    }
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-center">
-            {mode === "login" ? "Welcome Back" : "Create Account"}
-          </DialogTitle>
+          <DialogTitle>{mode === "login" ? "Sign In" : "Create Account"}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="Enter your email"
-              value={formData.email}
-              onChange={(e) => handleInputChange("email", e.target.value)}
-              required
-            />
-          </div>
+        <Tabs value={mode} onValueChange={(value) => onSwitchMode(value as "login" | "register")}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="login">Sign In</TabsTrigger>
+            <TabsTrigger value="register">Sign Up</TabsTrigger>
+          </TabsList>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <div className="relative">
-              <Input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                placeholder="Enter your password"
-                value={formData.password}
-                onChange={(e) => handleInputChange("password", e.target.value)}
-                required
-              />
+          <TabsContent value="login" className="space-y-4">
+            <div className="space-y-4">
               <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                onClick={() => setShowPassword(!showPassword)}
+                variant="outline"
+                className="w-full bg-transparent"
+                onClick={handleGoogleAuth}
+                disabled={isGoogleLoading}
               >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                {isGoogleLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Chrome className="mr-2 h-4 w-4" />
+                )}
+                Continue with Google
               </Button>
-            </div>
-          </div>
 
-          {mode === "register" && (
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
               <div className="relative">
-                <Input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Confirm your password"
-                  value={formData.confirmPassword}
-                  onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                  required
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                </div>
               </div>
+
+              <form onSubmit={handleEmailAuth} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                  Send Magic Link
+                </Button>
+              </form>
             </div>
-          )}
+          </TabsContent>
 
-          {error && <div className="text-red-500 text-sm text-center">{error}</div>}
-
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Please wait..." : mode === "login" ? "Sign In" : "Create Account"}
-          </Button>
-        </form>
-
-        <div className="text-center text-sm">
-          {mode === "login" ? (
-            <p>
-              {"Don't have an account? "}
-              <button
-                type="button"
-                onClick={() => onSwitchMode("register")}
-                className="text-blue-600 hover:underline font-medium"
+          <TabsContent value="register" className="space-y-4">
+            <div className="space-y-4">
+              <Button
+                variant="outline"
+                className="w-full bg-transparent"
+                onClick={handleGoogleAuth}
+                disabled={isGoogleLoading}
               >
-                Sign up
-              </button>
-            </p>
-          ) : (
-            <p>
-              Already have an account?{" "}
-              <button
-                type="button"
-                onClick={() => onSwitchMode("login")}
-                className="text-blue-600 hover:underline font-medium"
-              >
-                Sign in
-              </button>
-            </p>
-          )}
-        </div>
+                {isGoogleLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Chrome className="mr-2 h-4 w-4" />
+                )}
+                Sign up with Google
+              </Button>
 
-        {mode === "login" && (
-          <div className="text-center">
-            <button
-              type="button"
-              className="text-sm text-blue-600 hover:underline"
-              onClick={() => {
-                // Handle forgot password
-                alert("Forgot password functionality would be implemented here")
-              }}
-            >
-              Forgot your password?
-            </button>
-          </div>
-        )}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">Or sign up with</span>
+                </div>
+              </div>
+
+              <form onSubmit={handleEmailAuth} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="register-email">Email</Label>
+                  <Input
+                    id="register-email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                  Send Magic Link
+                </Button>
+              </form>
+            </div>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   )

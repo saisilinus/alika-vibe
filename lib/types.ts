@@ -7,7 +7,6 @@ export interface User {
   image?: string | null
   role: "user" | "admin" | "moderator"
   emailVerified?: Date | null
-  isActive: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -16,44 +15,73 @@ export interface Campaign {
   _id?: ObjectId
   title: string
   description: string
+  imageUrl: string
   category: string
-  templateImageUrl: string
-  creatorId: ObjectId
-  creatorEmail: string
-  status: "active" | "draft" | "archived"
-  viewCount: number
-  downloadCount: number
-  isTrending: boolean
-  isFeatured: boolean
-  placeholderConfig: Record<string, any>
   tags: string[]
+  createdBy: ObjectId
   createdAt: Date
   updatedAt: Date
+  viewCount: number
+  downloadCount: number
+  isActive: boolean
+  templateData?: {
+    width: number
+    height: number
+    elements: any[]
+  }
 }
 
 export interface GeneratedBanner {
   _id?: ObjectId
   campaignId: ObjectId
-  userId?: ObjectId
-  userEmail?: string
-  photoUrl: string
-  bannerUrl: string
-  downloadCount: number
-  isPublic: boolean
+  userId: ObjectId
+  imageUrl: string
+  customizations: {
+    text?: string
+    colors?: string[]
+    fonts?: string[]
+  }
   createdAt: Date
+  downloadCount: number
 }
 
 export interface Comment {
   _id?: ObjectId
   campaignId: ObjectId
-  userId?: ObjectId
-  userEmail?: string
-  userName?: string
+  userId: ObjectId
   content: string
-  likesCount: number
-  isDeleted: boolean
   createdAt: Date
   updatedAt: Date
+  isApproved: boolean
+}
+
+export interface Account {
+  _id?: ObjectId
+  userId: ObjectId
+  type: string
+  provider: string
+  providerAccountId: string
+  refresh_token?: string
+  access_token?: string
+  expires_at?: number
+  token_type?: string
+  scope?: string
+  id_token?: string
+  session_state?: string
+}
+
+export interface Session {
+  _id?: ObjectId
+  sessionToken: string
+  userId: ObjectId
+  expires: Date
+}
+
+export interface VerificationToken {
+  _id?: ObjectId
+  identifier: string
+  token: string
+  expires: Date
 }
 
 export interface DatabaseCollections {
@@ -61,6 +89,9 @@ export interface DatabaseCollections {
   campaigns: "campaigns"
   generatedBanners: "generatedBanners"
   comments: "comments"
+  accounts: "accounts"
+  sessions: "sessions"
+  verificationTokens: "verificationTokens"
 }
 
 export interface DatabaseStats {
@@ -81,4 +112,7 @@ export const COLLECTIONS: DatabaseCollections = {
   campaigns: "campaigns",
   generatedBanners: "generatedBanners",
   comments: "comments",
+  accounts: "accounts",
+  sessions: "sessions",
+  verificationTokens: "verificationTokens",
 }

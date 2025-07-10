@@ -1,5 +1,5 @@
 import { MongoClient, type Db, type Collection, ObjectId } from "mongodb"
-import type { User, Campaign, GeneratedBanner, Comment } from "./types"
+import type { User, Campaign, GeneratedBanner, Comment, Account, Session, VerificationToken } from "./types"
 
 if (!process.env.MONGODB_URI) {
   throw new Error('Invalid/Missing environment variable: "MONGODB_URI"')
@@ -12,8 +12,6 @@ let client: MongoClient
 let clientPromise: Promise<MongoClient>
 
 if (process.env.NODE_ENV === "development") {
-  // In development mode, use a global variable so that the value
-  // is preserved across module reloads caused by HMR (Hot Module Replacement).
   const globalWithMongo = global as typeof globalThis & {
     _mongoClientPromise?: Promise<MongoClient>
   }
@@ -24,15 +22,13 @@ if (process.env.NODE_ENV === "development") {
   }
   clientPromise = globalWithMongo._mongoClientPromise
 } else {
-  // In production mode, it's best to not use a global variable.
   client = new MongoClient(uri, options)
   clientPromise = client.connect()
 }
 
-// Database helper functions
 export async function getDatabase(): Promise<Db> {
   const client = await clientPromise
-  return client.db("alika")
+  return client.db("alika-platform")
 }
 
 export async function getUsersCollection(): Promise<Collection<User>> {
@@ -55,13 +51,27 @@ export async function getCommentsCollection(): Promise<Collection<Comment>> {
   return db.collection<Comment>("comments")
 }
 
-// Utility functions
+export async function getAccountsCollection(): Promise<Collection<Account>> {
+  const db = await getDatabase()
+  return db.collection<Account>("accounts")
+}
+
+export async function getSessionsCollection(): Promise<Collection<Session>> {
+  const db = await getDatabase()
+  return db.collection<Session>("sessions")
+}
+
+export async function getVerificationTokensCollection(): Promise<Collection<VerificationToken>> {
+  const db = await getDatabase()
+  return db.collection<VerificationToken>("verification_tokens")
+}
+
 export function isValidObjectId(id: string): boolean {
   return ObjectId.isValid(id)
 }
 
-export function createObjectId(id?: string): ObjectId {
-  return id ? new ObjectId(id) : new ObjectId()
+export function toObjectId(id: string): ObjectId {
+  return new ObjectId(id)
 }
 
 export default clientPromise

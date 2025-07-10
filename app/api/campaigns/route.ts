@@ -1,47 +1,38 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { getCampaignsCollection, createObjectId } from "@/lib/database"
+import { connectToDatabase } from "@/lib/database"
 import type { Campaign } from "@/lib/types"
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
+    const { db } = await connectToDatabase()
+    const campaigns = db.collection<Campaign>("campaigns")
+
+    const searchParams = request.nextUrl.searchParams
     const page = Number.parseInt(searchParams.get("page") || "1")
     const limit = Number.parseInt(searchParams.get("limit") || "12")
-    const category = searchParams.get("category")
-    const search = searchParams.get("search")
+    const search = searchParams.get("search") || ""
+    const category = searchParams.get("category") || ""
 
-    const campaigns = await getCampaignsCollection()
+    const skip = (page - 1) * limit
 
     // Build query
-    const query: any = { status: "active" }
-
-    if (category && category !== "all") {
+    const query: any = {}
+    if (search) {
+      query.$or = [{ title: { $regex: search, $options: "i" } }, { description: { $regex: search, $options: "i" } }]
+    }
+    if (category) {
       query.category = category
     }
 
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-        { tags: { $in: [new RegExp(search, "i")] } },
-      ]
-    }
-
-    // Get total count
-    const total = await campaigns.countDocuments(query)
-
-    // Get campaigns with pagination
-    const results = await campaigns
-      .find(query)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .toArray()
+    const [campaignList, total] = await Promise.all([
+      campaigns.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).toArray(),
+      campaigns.countDocuments(query),
+    ])
 
     return NextResponse.json({
-      campaigns: results,
+      campaigns: campaignList,
       pagination: {
         page,
         limit,
@@ -58,46 +49,38 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Check if user is admin or moderator
-    if (session.user.role !== "admin" && session.user.role !== "moderator") {
-      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 })
-    }
+    const { db } = await connectToDatabase()
+    const campaigns = db.collection<Campaign>("campaigns")
 
     const body = await request.json()
-    const { title, description, category, templateImageUrl, tags = [] } = body
+    const { title, description, category, templateUrl, tags } = body
 
-    if (!title || !description || !category || !templateImageUrl) {
+    if (!title || !description || !templateUrl) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const campaigns = await getCampaignsCollection()
-
-    const newCampaign: Campaign = {
+    const campaign: Omit<Campaign, "_id"> = {
       title,
       description,
-      category,
-      templateImageUrl,
-      creatorId: createObjectId(session.user.id),
-      creatorEmail: session.user.email,
-      status: "active",
-      viewCount: 0,
-      downloadCount: 0,
-      tags: Array.isArray(tags) ? tags : [],
+      category: category || "general",
+      templateUrl,
+      tags: tags || [],
+      createdBy: session.user.id,
       createdAt: new Date(),
       updatedAt: new Date(),
+      viewCount: 0,
+      downloadCount: 0,
+      isActive: true,
     }
 
-    const result = await campaigns.insertOne(newCampaign)
+    const result = await campaigns.insertOne(campaign)
+    const newCampaign = await campaigns.findOne({ _id: result.insertedId })
 
-    return NextResponse.json({
-      success: true,
-      campaignId: result.insertedId,
-    })
+    return NextResponse.json(newCampaign, { status: 201 })
   } catch (error) {
     console.error("Error creating campaign:", error)
     return NextResponse.json({ error: "Failed to create campaign" }, { status: 500 })

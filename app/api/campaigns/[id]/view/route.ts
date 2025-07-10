@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getCampaignsCollection, isValidObjectId, createObjectId } from "@/lib/database"
+import { getCampaignsCollection, isValidObjectId, toObjectId } from "@/lib/database"
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -11,11 +11,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     const campaigns = await getCampaignsCollection()
 
-    const result = await campaigns.updateOne({ _id: createObjectId(id) }, { $inc: { viewCount: 1 } })
-
-    if (result.matchedCount === 0) {
-      return NextResponse.json({ error: "Campaign not found" }, { status: 404 })
-    }
+    await campaigns.updateOne({ _id: toObjectId(id) }, { $inc: { viewCount: 1 } })
 
     return NextResponse.json({ success: true })
   } catch (error) {

@@ -1,121 +1,91 @@
-#!/usr/bin/env node
-
 const { MongoClient } = require("mongodb")
-require("dotenv").config()
 
-async function initializeDatabase() {
-  if (!process.env.MONGODB_URI) {
-    console.error("MONGODB_URI environment variable is not set")
-    process.exit(1)
-  }
+if (!process.env.MONGODB_URI) {
+  console.error("MONGODB_URI environment variable is not set")
+  process.exit(1)
+}
 
+async function initDatabase() {
   const client = new MongoClient(process.env.MONGODB_URI)
 
   try {
     await client.connect()
     console.log("Connected to MongoDB")
 
-    const db = client.db("alika")
+    const db = client.db("alika-platform")
 
     // Create indexes
     console.log("Creating indexes...")
 
-    // Users collection indexes
     await db.collection("users").createIndex({ email: 1 }, { unique: true })
-
-    // Campaigns collection indexes
-    await db.collection("campaigns").createIndex({ status: 1 })
     await db.collection("campaigns").createIndex({ category: 1 })
+    await db.collection("campaigns").createIndex({ tags: 1 })
     await db.collection("campaigns").createIndex({ createdAt: -1 })
     await db.collection("campaigns").createIndex({ viewCount: -1 })
-    await db.collection("campaigns").createIndex({
-      title: "text",
-      description: "text",
-      tags: "text",
-    })
-
-    // Generated banners collection indexes
     await db.collection("generated_banners").createIndex({ campaignId: 1 })
     await db.collection("generated_banners").createIndex({ userId: 1 })
-    await db.collection("generated_banners").createIndex({ createdAt: -1 })
-
-    // Comments collection indexes
     await db.collection("comments").createIndex({ campaignId: 1 })
-    await db.collection("comments").createIndex({ createdAt: -1 })
 
     console.log("Indexes created successfully")
 
     // Insert sample data
     console.log("Inserting sample data...")
 
+    // Create admin user
+    const adminUser = {
+      name: "Admin User",
+      email: "admin@alika.com",
+      role: "admin",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    await db.collection("users").updateOne({ email: adminUser.email }, { $setOnInsert: adminUser }, { upsert: true })
+
+    // Sample campaigns
     const sampleCampaigns = [
       {
-        title: "Cracking the Code 1.0",
-        description:
-          "Join us for an exciting coding bootcamp where you'll learn the fundamentals of programming and web development.",
-        category: "Education",
-        templateImageUrl: "/placeholder.jpg",
-        creatorId: null,
-        creatorEmail: "admin@alika.com",
-        status: "active",
-        viewCount: 1250,
-        downloadCount: 89,
-        tags: ["coding", "education", "bootcamp"],
-        createdAt: new Date("2024-01-15"),
-        updatedAt: new Date("2024-01-15"),
-      },
-      {
-        title: "Summer Music Festival",
-        description: "Experience the best summer music festival with top artists from around the world.",
-        category: "Music",
-        templateImageUrl: "/placeholder.jpg",
-        creatorId: null,
-        creatorEmail: "admin@alika.com",
-        status: "active",
-        viewCount: 890,
+        title: "Summer Sale Banner",
+        description: "Bright and colorful summer sale banner template",
+        imageUrl: "/placeholder.svg?height=400&width=800",
+        category: "sales",
+        tags: ["summer", "sale", "colorful"],
+        createdBy: (await db.collection("users").findOne({ email: "admin@alika.com" }))._id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        viewCount: 150,
         downloadCount: 45,
-        tags: ["music", "festival", "summer"],
-        createdAt: new Date("2024-01-12"),
-        updatedAt: new Date("2024-01-12"),
+        isActive: true,
       },
       {
-        title: "Tech Conference 2024",
-        description: "The biggest tech conference of the year featuring the latest innovations and industry leaders.",
-        category: "Technology",
-        templateImageUrl: "/placeholder.jpg",
-        creatorId: null,
-        creatorEmail: "admin@alika.com",
-        status: "active",
-        viewCount: 2100,
-        downloadCount: 156,
-        tags: ["technology", "conference", "innovation"],
-        createdAt: new Date("2024-01-10"),
-        updatedAt: new Date("2024-01-10"),
+        title: "Tech Conference Banner",
+        description: "Professional banner for technology conferences",
+        imageUrl: "/placeholder.svg?height=400&width=800",
+        category: "events",
+        tags: ["tech", "conference", "professional"],
+        createdBy: (await db.collection("users").findOne({ email: "admin@alika.com" }))._id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        viewCount: 89,
+        downloadCount: 23,
+        isActive: true,
+      },
+      {
+        title: "Food Delivery Promo",
+        description: "Appetizing banner for food delivery promotions",
+        imageUrl: "/placeholder.svg?height=400&width=800",
+        category: "food",
+        tags: ["food", "delivery", "promo"],
+        createdBy: (await db.collection("users").findOne({ email: "admin@alika.com" }))._id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        viewCount: 234,
+        downloadCount: 67,
+        isActive: true,
       },
     ]
 
-    // First create admin user
-    const adminUser = await db.collection("users").findOneAndUpdate(
-      { email: "admin@alika.com" },
-      {
-        $set: {
-          name: "Admin User",
-          email: "admin@alika.com",
-          role: "admin",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      },
-      { upsert: true, returnDocument: "after" },
-    )
-
-    // Update campaigns with correct creator ID
-    const campaignsWithCreatorId = sampleCampaigns.map((campaign) => ({
-      ...campaign,
-      creatorId: adminUser.value._id,
-    }))
-
-    await db.collection("campaigns").insertMany(campaignsWithCreatorId)
+    await db.collection("campaigns").insertMany(sampleCampaigns)
 
     console.log("Sample data inserted successfully")
     console.log("Database initialization completed!")
@@ -127,4 +97,4 @@ async function initializeDatabase() {
   }
 }
 
-initializeDatabase()
+initDatabase()

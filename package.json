@@ -6,14 +6,12 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
-    "setup": "node scripts/setup.js",
-    "start": "next start",
-    "type-check": "tsc --noEmit"
+    "setup": "pnpm install && node scripts/init-database.js",
+    "start": "next start"
   },
   "dependencies": {
     "@auth/core": "latest",
     "@aws-sdk/credential-providers": "latest",
-    "@hookform/resolvers": "^3.9.1",
     "@mongodb-js/zstd": "latest",
     "@next-auth/mongodb-adapter": "latest",
     "@radix-ui/react-accordion": "latest",
@@ -43,8 +41,8 @@
     "@radix-ui/react-toggle": "latest",
     "@radix-ui/react-toggle-group": "latest",
     "@radix-ui/react-tooltip": "latest",
+    "@reduxjs/toolkit": "latest",
     "@supabase/supabase-js": "latest",
-    "autoprefixer": "^10.4.20",
     "bcryptjs": "latest",
     "child_process": "latest",
     "class-variance-authority": "^0.7.1",
@@ -52,7 +50,7 @@
     "cmdk": "latest",
     "cookie-parser": "latest",
     "cors": "latest",
-    "date-fns": "4.1.0",
+    "date-fns": "^4.1.0",
     "dotenv": "latest",
     "embla-carousel-react": "latest",
     "express": "latest",
@@ -69,7 +67,7 @@
     "mongodb-client-encryption": "latest",
     "mongoose": "latest",
     "multer": "latest",
-    "next": "14.2.16",
+    "next": "15.2.4",
     "next-auth": "latest",
     "next-themes": "latest",
     "nodemailer": "latest",
@@ -79,12 +77,14 @@
     "path": "latest",
     "pg": "latest",
     "pg-native": "latest",
-    "react": "^18",
+    "react": "^19",
     "react-day-picker": "latest",
-    "react-dom": "^18",
+    "react-dom": "^19",
     "react-hook-form": "latest",
+    "react-redux": "latest",
     "react-resizable-panels": "latest",
     "recharts": "latest",
+    "redux": "latest",
     "sharp": "latest",
     "snappy": "latest",
     "socks": "latest",
@@ -92,20 +92,16 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "uuid": "latest",
-    "vaul": "latest",
-    "zod": "^3.24.1"
+    "vaul": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^8",
+    "eslint-config-next": "15.1.3",
     "postcss": "^8.5",
-    "tailwindcss": "^3.4.17",
+    "tailwindcss": "^3.4.1",
     "typescript": "^5"
-  },
-  "packageManager": "pnpm@8.0.0",
-  "engines": {
-    "node": ">=18.0.0",
-    "pnpm": ">=8.0.0"
   }
 }

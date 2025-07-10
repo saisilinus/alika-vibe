@@ -2,7 +2,7 @@ import type { NextAuthOptions } from "next-auth"
 import { MongoDBAdapter } from "@next-auth/mongodb-adapter"
 import GoogleProvider from "next-auth/providers/google"
 import EmailProvider from "next-auth/providers/email"
-import clientPromise from "./mongodb"
+import clientPromise from "./database"
 
 export const authOptions: NextAuthOptions = {
   adapter: MongoDBAdapter(clientPromise),
@@ -30,14 +30,14 @@ export const authOptions: NextAuthOptions = {
       try {
         // Check if user exists
         const existingUser = await clientPromise.then((db) =>
-          db.db("alika").collection("users").findOne({ email: user.email }),
+          db.db("alika-platform").collection("users").findOne({ email: user.email }),
         )
 
         if (!existingUser) {
           // Create new user with default role
           await clientPromise.then((db) =>
             db
-              .db("alika")
+              .db("alika-platform")
               .collection("users")
               .updateOne(
                 { email: user.email },
@@ -68,7 +68,7 @@ export const authOptions: NextAuthOptions = {
 
           if (Object.keys(updates).length > 0) {
             await clientPromise.then((db) =>
-              db.db("alika").collection("users").updateOne({ _id: existingUser._id }, { $set: updates }),
+              db.db("alika-platform").collection("users").updateOne({ _id: existingUser._id }, { $set: updates }),
             )
           }
         }
@@ -79,22 +79,24 @@ export const authOptions: NextAuthOptions = {
         return false
       }
     },
-    async session({ session, token }) {
-      if (session.user?.email) {
-        const user = await clientPromise.then((db) =>
-          db.db("alika").collection("users").findOne({ email: session.user.email }),
-        )
-        if (user) {
-          session.user.id = user._id!.toString()
-          session.user.role = user.role
-          session.user.isActive = user.isActive
+    async session({ session, user }) {
+      if (session.user) {
+        session.user.id = user.id
+        // Add role from database
+        const userDoc = await (await clientPromise)
+          .db("alika-platform")
+          .collection("users")
+          .findOne({ email: session.user.email })
+
+        if (userDoc) {
+          session.user.role = userDoc.role || "user"
         }
       }
       return session
     },
     async jwt({ token, user }) {
       if (user) {
-        token.role = user.role
+        token.id = user.id
       }
       return token
     },
@@ -125,6 +127,7 @@ declare module "next-auth" {
 
 declare module "next-auth/jwt" {
   interface JWT {
+    id: string
     role: "user" | "admin" | "moderator"
   }
 }

@@ -5,10 +5,13 @@ export async function GET() {
   try {
     const campaigns = await getCampaignsCollection()
 
-    // Get trending campaigns based on view count and recent activity
-    const results = await campaigns.find({ status: "active" }).sort({ viewCount: -1, createdAt: -1 }).limit(6).toArray()
+    const trendingCampaigns = await campaigns
+      .find({ isActive: true })
+      .sort({ viewCount: -1, downloadCount: -1 })
+      .limit(8)
+      .toArray()
 
-    return NextResponse.json({ campaigns: results })
+    return NextResponse.json({ campaigns: trendingCampaigns })
   } catch (error) {
     console.error("Error fetching trending campaigns:", error)
     return NextResponse.json({ error: "Failed to fetch trending campaigns" }, { status: 500 })
