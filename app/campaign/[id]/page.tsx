@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -9,71 +10,45 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { Eye, Calendar, Facebook, Twitter, Linkedin, Download, ArrowLeft } from "lucide-react"
+import { Loading } from "@/components/ui/loading"
+import { toast } from "@/hooks/use-toast"
 import PhotoUpload from "@/components/photo-upload"
 import BannerPreview from "@/components/banner-preview"
 import CommentsSection from "@/components/comments-section"
-
-// Mock campaign data - replace with real API call
-const campaignData = {
-  id: 1,
-  title: "Cracking the Code 1.0",
-  description:
-    "University Life Career Launch & Beyond - Join us for an intensive workshop designed to help students transition from university life to successful careers. This comprehensive program covers resume building, interview skills, networking strategies, and industry insights from leading professionals.",
-  category: "Education",
-  creator: {
-    name: "Tech University",
-    avatar: "/placeholder.svg?height=40&width=40",
-    verified: true,
-  },
-  viewCount: 1250,
-  downloadCount: 890,
-  createdAt: "2024-01-15",
-  templateUrl: "/placeholder.svg?height=400&width=600",
-  placeholderConfig: {
-    photoArea: { x: 450, y: 150, width: 120, height: 120, shape: "circle" },
-    textArea: { x: 200, y: 300, width: 200, height: 40 },
-  },
-  tags: ["Education", "Career", "University", "Workshop"],
-  isTrending: true,
-}
-
-const trendingCampaigns = [
-  {
-    id: 2,
-    title: "Summer Music Festival",
-    thumbnail: "/placeholder.svg?height=150&width=200",
-    viewCount: 890,
-    category: "Music",
-  },
-  {
-    id: 3,
-    title: "Tech Conference 2024",
-    thumbnail: "/placeholder.svg?height=150&width=200",
-    viewCount: 2100,
-    category: "Technology",
-  },
-  {
-    id: 4,
-    title: "Business Networking",
-    thumbnail: "/placeholder.svg?height=150&width=200",
-    viewCount: 650,
-    category: "Business",
-  },
-  {
-    id: 5,
-    title: "Art Exhibition",
-    thumbnail: "/placeholder.svg?height=150&width=200",
-    viewCount: 420,
-    category: "Art",
-  },
-]
+import {
+  useGetCampaignByIdQuery,
+  useIncrementCampaignViewsMutation,
+  useGenerateBannerMutation,
+  useGetTrendingCampaignsQuery,
+} from "@/features"
 
 export default function CampaignDetailPage() {
+  const params = useParams()
+  const campaignId = params.id as string
+
   const [userName, setUserName] = useState("")
   const [userPhoto, setUserPhoto] = useState<string | null>(null)
   const [isPublic, setIsPublic] = useState(false)
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [newComment, setNewComment] = useState("")
+
+  // RTK Query hooks
+  const {
+    data: campaignData,
+    isLoading: campaignLoading,
+    error: campaignError,
+  } = useGetCampaignByIdQuery({ campaignId })
+
+  const { data: trendingData } = useGetTrendingCampaignsQuery({ limit: 4 })
+
+  // Mutations
+  const [incrementViews] = useIncrementCampaignViewsMutation()
+  const [generateBanner, { isLoading: isGenerating }] = useGenerateBannerMutation()
+
+  // Increment view count on component mount
+  useState(() => {
+    if (campaignId) {
+      incrementViews({ campaignId })
+    }
+  })
 
   const handlePhotoUpload = (photoUrl: string) => {
     setUserPhoto(photoUrl)
@@ -81,36 +56,44 @@ export default function CampaignDetailPage() {
 
   const handleGenerateBanner = async () => {
     if (!userName.trim()) {
-      alert("Please enter your name")
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter your name",
+      })
       return
     }
 
-    setIsGenerating(true)
-
-    // Simulate banner generation
     try {
-      await new Promise((resolve) => setTimeout(resolve, 3000))
+      const result = await generateBanner({
+        campaignId,
+        userName,
+        userPhoto: userPhoto || "",
+        isPublic,
+      }).unwrap()
 
-      // In real implementation, this would call the backend API
-      const generatedBannerUrl = `/generated/banner-${Date.now()}.png`
+      toast({
+        title: "Success!",
+        description: "Banner generated successfully!",
+      })
 
       // Trigger download
       const link = document.createElement("a")
-      link.href = generatedBannerUrl
-      link.download = `${campaignData.title.toLowerCase().replace(/\s+/g, "-")}-${userName.toLowerCase().replace(/\s+/g, "-")}.png`
+      link.href = result.bannerUrl
+      link.download = `${campaignData?.campaign.title.toLowerCase().replace(/\s+/g, "-")}-${userName.toLowerCase().replace(/\s+/g, "-")}.png`
       link.click()
-
-      alert("Banner generated successfully!")
     } catch (error) {
-      alert("Failed to generate banner. Please try again.")
-    } finally {
-      setIsGenerating(false)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to generate banner. Please try again.",
+      })
     }
   }
 
   const handleShare = (platform: string) => {
     const url = window.location.href
-    const text = `Check out this amazing campaign: ${campaignData.title}`
+    const text = `Check out this amazing campaign: ${campaignData?.campaign.title}`
 
     const shareUrls = {
       facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
@@ -123,12 +106,36 @@ export default function CampaignDetailPage() {
     }
   }
 
+  if (campaignLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loading text="Loading campaign..." />
+      </div>
+    )
+  }
+
+  if (campaignError || !campaignData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="w-96">
+          <CardContent className="p-6 text-center">
+            <h2 className="text-xl font-semibold mb-2">Campaign Not Found</h2>
+            <p className="text-gray-600 mb-4">The campaign you're looking for doesn't exist.</p>
+            <Button onClick={() => window.history.back()}>Go Back</Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  const campaign = campaignData.campaign
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <Button variant="ghost" className="mb-4">
+          <Button variant="ghost" className="mb-4" onClick={() => window.history.back()}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Browse
           </Button>
@@ -144,9 +151,9 @@ export default function CampaignDetailPage() {
                 {/* Campaign Badge */}
                 <div className="flex items-center gap-2 mb-4">
                   <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                    {campaignData.category}
+                    {campaign.category}
                   </Badge>
-                  {campaignData.isTrending && (
+                  {campaign.isTrending && (
                     <Badge variant="secondary" className="bg-red-100 text-red-800">
                       Trending
                     </Badge>
@@ -154,16 +161,16 @@ export default function CampaignDetailPage() {
                 </div>
 
                 {/* Campaign Title */}
-                <h1 className="text-2xl font-bold text-gray-900 mb-4">{campaignData.title}</h1>
+                <h1 className="text-2xl font-bold text-gray-900 mb-4">{campaign.title}</h1>
 
                 {/* Creator Info */}
                 <div className="flex items-center space-x-3 mb-4">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={campaignData.creator.avatar || "/placeholder.svg"} />
-                    <AvatarFallback>{campaignData.creator.name[0]}</AvatarFallback>
+                    <AvatarImage src={campaign.creator?.avatar || "/placeholder.svg"} />
+                    <AvatarFallback>{campaign.creator?.name?.[0] || "U"}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-medium text-gray-900">{campaignData.creator.name}</p>
+                    <p className="font-medium text-gray-900">{campaign.creator?.name || "Unknown"}</p>
                     <p className="text-sm text-gray-500">Campaign Creator</p>
                   </div>
                 </div>
@@ -172,15 +179,15 @@ export default function CampaignDetailPage() {
                 <div className="flex items-center space-x-6 mb-6 text-sm text-gray-500">
                   <div className="flex items-center">
                     <Eye className="h-4 w-4 mr-1" />
-                    {campaignData.viewCount.toLocaleString()} views
+                    {campaign.viewCount?.toLocaleString() || 0} views
                   </div>
                   <div className="flex items-center">
                     <Download className="h-4 w-4 mr-1" />
-                    {campaignData.downloadCount} downloads
+                    {campaign.downloadCount || 0} downloads
                   </div>
                   <div className="flex items-center">
                     <Calendar className="h-4 w-4 mr-1" />
-                    {new Date(campaignData.createdAt).toLocaleDateString()}
+                    {new Date(campaign.createdAt).toLocaleDateString()}
                   </div>
                 </div>
 
@@ -189,20 +196,22 @@ export default function CampaignDetailPage() {
                 {/* Description */}
                 <div className="mb-6">
                   <h3 className="font-semibold text-gray-900 mb-2">About this Campaign</h3>
-                  <p className="text-gray-600 text-sm leading-relaxed">{campaignData.description}</p>
+                  <p className="text-gray-600 text-sm leading-relaxed">{campaign.description}</p>
                 </div>
 
                 {/* Tags */}
-                <div className="mb-6">
-                  <h3 className="font-semibold text-gray-900 mb-2">Tags</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {campaignData.tags.map((tag) => (
-                      <Badge key={tag} variant="outline" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
+                {campaign.tags && campaign.tags.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="font-semibold text-gray-900 mb-2">Tags</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {campaign.tags.map((tag) => (
+                        <Badge key={tag} variant="outline" className="text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <Separator className="my-6" />
 
@@ -235,10 +244,10 @@ export default function CampaignDetailPage() {
                 {/* Banner Preview */}
                 <div className="mb-6">
                   <BannerPreview
-                    templateUrl={campaignData.templateUrl}
+                    templateUrl={campaign.templateUrl}
                     userPhoto={userPhoto}
                     userName={userName}
-                    placeholderConfig={campaignData.placeholderConfig}
+                    placeholderConfig={campaign.placeholderConfig}
                   />
                 </div>
 
@@ -304,21 +313,21 @@ export default function CampaignDetailPage() {
             </Card>
 
             {/* Comments Section */}
-            <CommentsSection campaignId={campaignData.id} />
+            <CommentsSection campaignId={campaignId} />
 
-            {/* Trending Section */}
+            {/* Similar Campaigns Section */}
             <Card className="mt-8">
               <CardContent className="p-6">
                 <h3 className="text-xl font-bold text-gray-900 mb-4">Similar Campaigns</h3>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  {trendingCampaigns.map((campaign) => (
+                  {trendingData?.campaigns?.slice(0, 4).map((campaign) => (
                     <Card
-                      key={campaign.id}
+                      key={campaign._id?.toString()}
                       className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
                     >
                       <div className="aspect-video relative">
                         <img
-                          src={campaign.thumbnail || "/placeholder.svg"}
+                          src={campaign.templateUrl || "/placeholder.svg"}
                           alt={campaign.title}
                           className="w-full h-full object-cover"
                         />
@@ -329,7 +338,7 @@ export default function CampaignDetailPage() {
                           <span>{campaign.category}</span>
                           <div className="flex items-center">
                             <Eye className="h-3 w-3 mr-1" />
-                            {campaign.viewCount}
+                            {campaign.viewCount || 0}
                           </div>
                         </div>
                       </CardContent>

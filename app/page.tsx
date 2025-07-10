@@ -6,52 +6,11 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Eye, Calendar, ArrowRight, Menu, X } from "lucide-react"
+import { LoadingCard } from "@/components/ui/loading"
 import AuthModal from "@/components/auth-modal"
 import UserDropdown from "@/components/user-dropdown"
-
-// Mock data - replace with real API calls
-const trendingBanners = [
-  {
-    id: 1,
-    title: "Cracking the Code 1.0",
-    description: "University Life Career Launch & Beyond",
-    thumbnail: "/placeholder.svg?height=200&width=300",
-    creator: { name: "Tech University", avatar: "/placeholder.svg?height=40&width=40" },
-    viewCount: 1250,
-    createdAt: "2024-01-15",
-    category: "Education",
-  },
-  {
-    id: 2,
-    title: "Summer Music Festival",
-    description: "Join us for the biggest music celebration",
-    thumbnail: "/placeholder.svg?height=200&width=300",
-    creator: { name: "Music Events", avatar: "/placeholder.svg?height=40&width=40" },
-    viewCount: 890,
-    createdAt: "2024-01-12",
-    category: "Music",
-  },
-  {
-    id: 3,
-    title: "Tech Conference 2024",
-    description: "Innovation and Technology Summit",
-    thumbnail: "/placeholder.svg?height=200&width=300",
-    creator: { name: "TechCorp", avatar: "/placeholder.svg?height=40&width=40" },
-    viewCount: 2100,
-    createdAt: "2024-01-10",
-    category: "Technology",
-  },
-  {
-    id: 4,
-    title: "Business Networking Event",
-    description: "Connect with industry leaders",
-    thumbnail: "/placeholder.svg?height=200&width=300",
-    creator: { name: "Business Hub", avatar: "/placeholder.svg?height=40&width=40" },
-    viewCount: 650,
-    createdAt: "2024-01-08",
-    category: "Business",
-  },
-]
+import { useGetTrendingCampaignsQuery, useGetLatestCampaignsQuery } from "@/features"
+import { useSession } from "next-auth/react"
 
 const categories = [
   { name: "Business", image: "/placeholder.svg?height=150&width=200", count: 45 },
@@ -65,19 +24,26 @@ const categories = [
 export default function HomePage() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [authMode, setAuthMode] = useState<"login" | "register">("login")
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [user, setUser] = useState({ name: "John Doe", avatar: "/placeholder.svg?height=32&width=32", role: "user" })
+
+  const { data: session } = useSession()
+  const isLoggedIn = !!session
+
+  // RTK Query hooks
+  const {
+    data: trendingData,
+    isLoading: trendingLoading,
+    error: trendingError,
+  } = useGetTrendingCampaignsQuery({ limit: 4 })
+
+  const { data: latestData, isLoading: latestLoading, error: latestError } = useGetLatestCampaignsQuery({ limit: 4 })
 
   const handleAuthSuccess = (userData: any) => {
-    setIsLoggedIn(true)
-    setUser(userData)
     setIsAuthModalOpen(false)
   }
 
   const handleLogout = () => {
-    setIsLoggedIn(false)
-    setUser({ name: "", avatar: "", role: "user" })
+    // Handled by NextAuth
   }
 
   return (
@@ -130,7 +96,14 @@ export default function HomePage() {
                   </Button>
                 </>
               ) : (
-                <UserDropdown user={user} onLogout={handleLogout} />
+                <UserDropdown
+                  user={{
+                    name: session.user?.name || "User",
+                    avatar: session.user?.image || "",
+                    role: "user",
+                  }}
+                  onLogout={handleLogout}
+                />
               )}
             </div>
 
@@ -184,7 +157,14 @@ export default function HomePage() {
                   </div>
                 ) : (
                   <div className="pt-2">
-                    <UserDropdown user={user} onLogout={handleLogout} />
+                    <UserDropdown
+                      user={{
+                        name: session.user?.name || "User",
+                        avatar: session.user?.image || "",
+                        role: "user",
+                      }}
+                      onLogout={handleLogout}
+                    />
                   </div>
                 )}
               </div>
@@ -221,43 +201,59 @@ export default function HomePage() {
               View All <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-            {trendingBanners.map((banner) => (
-              <Card key={banner.id} className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
-                <div className="aspect-video relative">
-                  <img
-                    src={banner.thumbnail || "/placeholder.svg"}
-                    alt={banner.title}
-                    className="w-full h-full object-cover"
-                  />
-                  <Badge className="absolute top-3 left-3 bg-red-500 hover:bg-red-600">{banner.category}</Badge>
-                </div>
-                <CardContent className="p-4">
-                  <h3 className="font-semibold text-lg mb-2">{banner.title}</h3>
-                  <p className="text-gray-600 text-sm mb-3">{banner.description}</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={banner.creator.avatar || "/placeholder.svg"} />
-                        <AvatarFallback>{banner.creator.name[0]}</AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm text-gray-600">{banner.creator.name}</span>
-                    </div>
-                    <div className="flex items-center space-x-4 text-sm text-gray-500">
-                      <div className="flex items-center">
-                        <Eye className="h-4 w-4 mr-1" />
-                        {banner.viewCount}
-                      </div>
-                      <div className="flex items-center">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        {new Date(banner.createdAt).toLocaleDateString()}
-                      </div>
-                    </div>
+
+          {trendingLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <LoadingCard key={i} />
+              ))}
+            </div>
+          ) : trendingError ? (
+            <div className="text-center py-8">
+              <p className="text-red-600">Error loading trending campaigns</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+              {trendingData?.campaigns?.map((banner) => (
+                <Card
+                  key={banner._id?.toString()}
+                  className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                >
+                  <div className="aspect-video relative">
+                    <img
+                      src={banner.templateUrl || "/placeholder.svg"}
+                      alt={banner.title}
+                      className="w-full h-full object-cover"
+                    />
+                    <Badge className="absolute top-3 left-3 bg-red-500 hover:bg-red-600">{banner.category}</Badge>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  <CardContent className="p-4">
+                    <h3 className="font-semibold text-lg mb-2">{banner.title}</h3>
+                    <p className="text-gray-600 text-sm mb-3">{banner.description}</p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Avatar className="h-6 w-6">
+                          <AvatarImage src={banner.creator?.avatar || "/placeholder.svg"} />
+                          <AvatarFallback>{banner.creator?.name?.[0] || "U"}</AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm text-gray-600">{banner.creator?.name || "Unknown"}</span>
+                      </div>
+                      <div className="flex items-center space-x-4 text-sm text-gray-500">
+                        <div className="flex items-center">
+                          <Eye className="h-4 w-4 mr-1" />
+                          {banner.viewCount || 0}
+                        </div>
+                        <div className="flex items-center">
+                          <Calendar className="h-4 w-4 mr-1" />
+                          {new Date(banner.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -270,18 +266,27 @@ export default function HomePage() {
               View All <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-            {trendingBanners
-              .slice()
-              .reverse()
-              .map((banner) => (
+
+          {latestLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <LoadingCard key={i} />
+              ))}
+            </div>
+          ) : latestError ? (
+            <div className="text-center py-8">
+              <p className="text-red-600">Error loading latest campaigns</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+              {latestData?.campaigns?.map((banner) => (
                 <Card
-                  key={`latest-${banner.id}`}
+                  key={banner._id?.toString()}
                   className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
                 >
                   <div className="aspect-video relative">
                     <img
-                      src={banner.thumbnail || "/placeholder.svg"}
+                      src={banner.templateUrl || "/placeholder.svg"}
                       alt={banner.title}
                       className="w-full h-full object-cover"
                     />
@@ -293,15 +298,15 @@ export default function HomePage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <Avatar className="h-6 w-6">
-                          <AvatarImage src={banner.creator.avatar || "/placeholder.svg"} />
-                          <AvatarFallback>{banner.creator.name[0]}</AvatarFallback>
+                          <AvatarImage src={banner.creator?.avatar || "/placeholder.svg"} />
+                          <AvatarFallback>{banner.creator?.name?.[0] || "U"}</AvatarFallback>
                         </Avatar>
-                        <span className="text-sm text-gray-600">{banner.creator.name}</span>
+                        <span className="text-sm text-gray-600">{banner.creator?.name || "Unknown"}</span>
                       </div>
                       <div className="flex items-center space-x-4 text-sm text-gray-500">
                         <div className="flex items-center">
                           <Eye className="h-4 w-4 mr-1" />
-                          {banner.viewCount}
+                          {banner.viewCount || 0}
                         </div>
                         <div className="flex items-center">
                           <Calendar className="h-4 w-4 mr-1" />
@@ -312,7 +317,8 @@ export default function HomePage() {
                   </CardContent>
                 </Card>
               ))}
-          </div>
+            </div>
+          )}
         </div>
       </section>
 

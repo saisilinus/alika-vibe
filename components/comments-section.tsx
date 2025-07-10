@@ -7,99 +7,59 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { MessageCircle, ThumbsUp, Send } from "lucide-react"
+import { Loading } from "@/components/ui/loading"
+import { toast } from "@/hooks/use-toast"
+import { useGetCommentsQuery, useCreateCommentMutation, useLikeCommentMutation } from "@/features"
 
 interface CommentsSectionProps {
-  campaignId: number
+  campaignId: string
 }
 
-// Mock comments data
-const mockComments = [
-  {
-    id: 1,
-    user: {
-      name: "Sarah Johnson",
-      avatar: "/placeholder.svg?height=32&width=32",
-      verified: true,
-    },
-    content: "This is such a great campaign! The design looks amazing and the concept is really helpful for students.",
-    timestamp: "2 hours ago",
-    likes: 12,
-    replies: [],
-  },
-  {
-    id: 2,
-    user: {
-      name: "Mike Chen",
-      avatar: "/placeholder.svg?height=32&width=32",
-      verified: false,
-    },
-    content: "Just generated my banner and it looks fantastic! Thanks for creating this.",
-    timestamp: "5 hours ago",
-    likes: 8,
-    replies: [
-      {
-        id: 3,
-        user: {
-          name: "Tech University",
-          avatar: "/placeholder.svg?height=32&width=32",
-          verified: true,
-        },
-        content: "So glad you liked it! Feel free to share it with your friends.",
-        timestamp: "4 hours ago",
-        likes: 3,
-      },
-    ],
-  },
-  {
-    id: 4,
-    user: {
-      name: "Emma Davis",
-      avatar: "/placeholder.svg?height=32&width=32",
-      verified: false,
-    },
-    content: "The photo upload feature works perfectly. Very smooth experience overall!",
-    timestamp: "1 day ago",
-    likes: 15,
-    replies: [],
-  },
-]
-
 export default function CommentsSection({ campaignId }: CommentsSectionProps) {
-  const [comments, setComments] = useState(mockComments)
   const [newComment, setNewComment] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [sortBy, setSortBy] = useState("newest")
+
+  // RTK Query hooks
+  const { data: commentsData, isLoading: commentsLoading } = useGetCommentsQuery({ campaignId, sortBy })
+
+  // Mutations
+  const [createComment, { isLoading: isSubmitting }] = useCreateCommentMutation()
+  const [likeComment] = useLikeCommentMutation()
 
   const handleSubmitComment = async () => {
     if (!newComment.trim()) return
 
-    setIsSubmitting(true)
+    try {
+      await createComment({
+        campaignId,
+        content: newComment,
+      }).unwrap()
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+      toast({
+        title: "Success!",
+        description: "Comment posted successfully.",
+      })
 
-    const comment = {
-      id: Date.now(),
-      user: {
-        name: "You",
-        avatar: "/placeholder.svg?height=32&width=32",
-        verified: false,
-      },
-      content: newComment,
-      timestamp: "Just now",
-      likes: 0,
-      replies: [],
+      setNewComment("")
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to post comment.",
+      })
     }
-
-    setComments([comment, ...comments])
-    setNewComment("")
-    setIsSubmitting(false)
   }
 
-  const handleLike = (commentId: number) => {
-    setComments(
-      comments.map((comment) => (comment.id === commentId ? { ...comment, likes: comment.likes + 1 } : comment)),
-    )
+  const handleLike = async (commentId: string) => {
+    try {
+      await likeComment({ commentId }).unwrap()
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to like comment.",
+      })
+    }
   }
 
   return (
@@ -108,7 +68,7 @@ export default function CommentsSection({ campaignId }: CommentsSectionProps) {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-2">
             <MessageCircle className="h-5 w-5 text-gray-600" />
-            <h3 className="text-lg font-semibold">Comments ({comments.length})</h3>
+            <h3 className="text-lg font-semibold">Comments ({commentsData?.total || 0})</h3>
           </div>
           <select
             value={sortBy}
@@ -151,85 +111,97 @@ export default function CommentsSection({ campaignId }: CommentsSectionProps) {
         </div>
 
         {/* Comments List */}
-        <div className="space-y-6">
-          {comments.map((comment) => (
-            <div key={comment.id} className="space-y-3">
-              <div className="flex space-x-3">
-                <Avatar className="h-8 w-8 flex-shrink-0">
-                  <AvatarImage src={comment.user.avatar || "/placeholder.svg"} />
-                  <AvatarFallback>{comment.user.name[0]}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <p className="font-medium text-sm">{comment.user.name}</p>
-                    {comment.user.verified && (
-                      <Badge variant="secondary" className="text-xs px-1 py-0">
-                        ✓
-                      </Badge>
-                    )}
-                    <span className="text-xs text-gray-500">{comment.timestamp}</span>
-                  </div>
-                  <p className="text-sm text-gray-700 mb-2">{comment.content}</p>
-                  <div className="flex items-center space-x-4">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleLike(comment.id)}
-                      className="text-xs h-auto p-1 text-gray-500 hover:text-blue-600"
-                    >
-                      <ThumbsUp className="h-3 w-3 mr-1" />
-                      {comment.likes}
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-xs h-auto p-1 text-gray-500 hover:text-blue-600">
-                      Reply
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Replies */}
-              {comment.replies.length > 0 && (
-                <div className="ml-11 space-y-3">
-                  {comment.replies.map((reply) => (
-                    <div key={reply.id} className="flex space-x-3">
-                      <Avatar className="h-6 w-6 flex-shrink-0">
-                        <AvatarImage src={reply.user.avatar || "/placeholder.svg"} />
-                        <AvatarFallback>{reply.user.name[0]}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <p className="font-medium text-xs">{reply.user.name}</p>
-                          {reply.user.verified && (
-                            <Badge variant="secondary" className="text-xs px-1 py-0">
-                              ✓
-                            </Badge>
-                          )}
-                          <span className="text-xs text-gray-500">{reply.timestamp}</span>
-                        </div>
-                        <p className="text-xs text-gray-700 mb-1">{reply.content}</p>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-xs h-auto p-1 text-gray-500 hover:text-blue-600"
-                        >
-                          <ThumbsUp className="h-3 w-3 mr-1" />
-                          {reply.likes}
-                        </Button>
-                      </div>
+        {commentsLoading ? (
+          <Loading text="Loading comments..." />
+        ) : (
+          <div className="space-y-6">
+            {commentsData?.comments?.map((comment) => (
+              <div key={comment._id?.toString()} className="space-y-3">
+                <div className="flex space-x-3">
+                  <Avatar className="h-8 w-8 flex-shrink-0">
+                    <AvatarImage src={comment.user?.avatar || "/placeholder.svg"} />
+                    <AvatarFallback>{comment.user?.name?.[0] || "U"}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <p className="font-medium text-sm">{comment.user?.name || "Anonymous"}</p>
+                      {comment.user?.verified && (
+                        <Badge variant="secondary" className="text-xs px-1 py-0">
+                          ✓
+                        </Badge>
+                      )}
+                      <span className="text-xs text-gray-500">{new Date(comment.createdAt).toLocaleDateString()}</span>
                     </div>
-                  ))}
+                    <p className="text-sm text-gray-700 mb-2">{comment.content}</p>
+                    <div className="flex items-center space-x-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleLike(comment._id?.toString() || "")}
+                        className="text-xs h-auto p-1 text-gray-500 hover:text-blue-600"
+                      >
+                        <ThumbsUp className="h-3 w-3 mr-1" />
+                        {comment.likes || 0}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs h-auto p-1 text-gray-500 hover:text-blue-600"
+                      >
+                        Reply
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
-          ))}
-        </div>
+
+                {/* Replies */}
+                {comment.replies && comment.replies.length > 0 && (
+                  <div className="ml-11 space-y-3">
+                    {comment.replies.map((reply) => (
+                      <div key={reply._id?.toString()} className="flex space-x-3">
+                        <Avatar className="h-6 w-6 flex-shrink-0">
+                          <AvatarImage src={reply.user?.avatar || "/placeholder.svg"} />
+                          <AvatarFallback>{reply.user?.name?.[0] || "U"}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <p className="font-medium text-xs">{reply.user?.name || "Anonymous"}</p>
+                            {reply.user?.verified && (
+                              <Badge variant="secondary" className="text-xs px-1 py-0">
+                                ✓
+                              </Badge>
+                            )}
+                            <span className="text-xs text-gray-500">
+                              {new Date(reply.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-700 mb-1">{reply.content}</p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs h-auto p-1 text-gray-500 hover:text-blue-600"
+                          >
+                            <ThumbsUp className="h-3 w-3 mr-1" />
+                            {reply.likes || 0}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Load More */}
-        <div className="text-center mt-6">
-          <Button variant="ghost" className="text-blue-600">
-            Load more comments
-          </Button>
-        </div>
+        {commentsData?.hasMore && (
+          <div className="text-center mt-6">
+            <Button variant="ghost" className="text-blue-600">
+              Load more comments
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
