@@ -29,14 +29,18 @@ export default function HomePage() {
   const { data: session } = useSession()
   const isLoggedIn = !!session
 
-  // RTK Query hooks
+  // RTK Query hooks - these return Campaign[] directly
   const {
-    data: trendingData,
+    data: trendingCampaigns,
     isLoading: trendingLoading,
     error: trendingError,
   } = useGetTrendingCampaignsQuery({ limit: 4 })
 
-  const { data: latestData, isLoading: latestLoading, error: latestError } = useGetLatestCampaignsQuery({ limit: 4 })
+  const {
+    data: latestCampaigns,
+    isLoading: latestLoading,
+    error: latestError,
+  } = useGetLatestCampaignsQuery({ limit: 4 })
 
   const handleAuthSuccess = (userData: any) => {
     setIsAuthModalOpen(false)
@@ -214,7 +218,7 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-              {trendingData?.campaigns?.map((banner) => (
+              {trendingCampaigns?.map((banner) => (
                 <Card
                   key={banner._id?.toString()}
                   className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
@@ -233,10 +237,10 @@ export default function HomePage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <Avatar className="h-6 w-6">
-                          <AvatarImage src={banner.creator?.avatar || "/placeholder.svg"} />
-                          <AvatarFallback>{banner.creator?.name?.[0] || "U"}</AvatarFallback>
+                          <AvatarImage src="/placeholder.svg" />
+                          <AvatarFallback>U</AvatarFallback>
                         </Avatar>
-                        <span className="text-sm text-gray-600">{banner.creator?.name || "Unknown"}</span>
+                        <span className="text-sm text-gray-600">Creator</span>
                       </div>
                       <div className="flex items-center space-x-4 text-sm text-gray-500">
                         <div className="flex items-center">
@@ -279,7 +283,7 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-              {latestData?.campaigns?.map((banner) => (
+              {latestCampaigns?.map((banner) => (
                 <Card
                   key={banner._id?.toString()}
                   className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
@@ -298,10 +302,10 @@ export default function HomePage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <Avatar className="h-6 w-6">
-                          <AvatarImage src={banner.creator?.avatar || "/placeholder.svg"} />
-                          <AvatarFallback>{banner.creator?.name?.[0] || "U"}</AvatarFallback>
+                          <AvatarImage src="/placeholder.svg" />
+                          <AvatarFallback>U</AvatarFallback>
                         </Avatar>
-                        <span className="text-sm text-gray-600">{banner.creator?.name || "Unknown"}</span>
+                        <span className="text-sm text-gray-600">Creator</span>
                       </div>
                       <div className="flex items-center space-x-4 text-sm text-gray-500">
                         <div className="flex items-center">
