@@ -1,113 +1,75 @@
 import api from "./api"
-import type { Comment } from "@/lib/types"
+import type { Comment, CreateCommentRequest, UpdateCommentRequest } from "@/lib/types"
 
-export interface CommentQueryParams {
-  campaignId: string
-  page?: number
-  limit?: number
-  sortBy?: "createdAt" | "likes"
-  sortOrder?: "asc" | "desc"
-}
-
-export interface CommentResponse {
-  comments: Comment[]
-  pagination: {
-    page: number
-    limit: number
-    total: number
-    pages: number
-  }
-}
-
-export interface CreateCommentRequest {
-  campaignId: string
-  content: string
-}
-
-export interface UpdateCommentRequest {
-  commentId: string
-  content: string
-}
-
-export interface LikeCommentRequest {
-  commentId: string
-}
-
-export interface ReportCommentRequest {
-  commentId: string
-  reason: string
-}
-
-const apiWithCommentTags = api.enhanceEndpoints({
-  addTagTypes: ["Comment"],
-})
-
-const commentApi = apiWithCommentTags.injectEndpoints({
+export const commentsApi = api.injectEndpoints({
   endpoints: (builder) => ({
-    getComments: builder.query<CommentResponse, CommentQueryParams>({
-      query: ({ campaignId, ...params }) => ({
-        url: `campaigns/${campaignId}/comments`,
-        method: "GET",
-        params,
+    // Get comments for a campaign
+    getComments: builder.query<
+      Comment[],
+      {
+        campaignId: string
+        sortBy?: "createdAt" | "likes"
+        order?: "asc" | "desc"
+      }
+    >({
+      query: ({ campaignId, sortBy = "createdAt", order = "desc" }) => ({
+        url: "/comments",
+        params: { campaignId, sortBy, order },
       }),
-      providesTags: (result) =>
-        result?.comments
-          ? [
-              ...result.comments.map(({ _id }) => ({
-                type: "Comment" as const,
-                id: _id?.toString(),
-              })),
-              { type: "Comment", id: "PARTIAL-COMMENT-LIST" },
-            ]
-          : [{ type: "Comment", id: "PARTIAL-COMMENT-LIST" }],
+      providesTags: (result, error, { campaignId }) => [{ type: "Comment", id: `campaign-${campaignId}` }],
     }),
 
+    // Create comment
     createComment: builder.mutation<Comment, CreateCommentRequest>({
-      query: ({ campaignId, content }) => ({
-        url: `campaigns/${campaignId}/comments`,
+      query: (comment) => ({
+        url: "/comments",
         method: "POST",
-        body: { content },
+        body: comment,
       }),
-      invalidatesTags: [{ type: "Comment", id: "PARTIAL-COMMENT-LIST" }],
+      invalidatesTags: (result, error, { campaignId }) => [{ type: "Comment", id: `campaign-${campaignId}` }],
     }),
 
-    updateComment: builder.mutation<Comment, UpdateCommentRequest>({
-      query: ({ commentId, content }) => ({
-        url: `comments/${commentId}`,
-        method: "PATCH",
-        body: { content },
+    // Update comment
+    updateComment: builder.mutation<
+      Comment,
+      {
+        id: string
+        updates: UpdateCommentRequest
+      }
+    >({
+      query: ({ id, updates }) => ({
+        url: `/comments/${id}`,
+        method: "PUT",
+        body: updates,
       }),
-      invalidatesTags: (_result, _error, { commentId }) => [
-        { type: "Comment", id: commentId },
-        { type: "Comment", id: "PARTIAL-COMMENT-LIST" },
-      ],
+      invalidatesTags: (result, error, { id }) => [{ type: "Comment", id }],
     }),
 
-    deleteComment: builder.mutation<{ success: boolean }, string>({
-      query: (commentId) => ({
-        url: `comments/${commentId}`,
+    // Delete comment
+    deleteComment: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/comments/${id}`,
         method: "DELETE",
       }),
-      invalidatesTags: (_result, _error, commentId) => [
-        { type: "Comment", id: commentId },
-        { type: "Comment", id: "PARTIAL-COMMENT-LIST" },
-      ],
+      invalidatesTags: (result, error, id) => [{ type: "Comment", id }],
     }),
 
-    likeComment: builder.mutation<{ success: boolean; liked: boolean }, LikeCommentRequest>({
-      query: ({ commentId }) => ({
-        url: `comments/${commentId}/like`,
+    // Like comment
+    likeComment: builder.mutation<Comment, string>({
+      query: (id) => ({
+        url: `/comments/${id}/like`,
         method: "POST",
       }),
-      invalidatesTags: (_result, _error, { commentId }) => [{ type: "Comment", id: commentId }],
+      invalidatesTags: (result, error, id) => [{ type: "Comment", id }],
     }),
 
-    reportComment: builder.mutation<{ success: boolean }, ReportCommentRequest>({
-      query: ({ commentId, reason }) => ({
-        url: `comments/${commentId}/report`,
+    // Unlike comment
+    unlikeComment: builder.mutation<Comment, string>({
+      query: (id) => ({
+        url: `/comments/${id}/unlike`,
         method: "POST",
-        body: { reason },
       }),
+      invalidatesTags: (result, error, id) => [{ type: "Comment", id }],
     }),
   }),
 })
@@ -118,7 +80,5 @@ export const {
   useUpdateCommentMutation,
   useDeleteCommentMutation,
   useLikeCommentMutation,
-  useReportCommentMutation,
-} = commentApi
-
-export default commentApi
+  useUnlikeCommentMutation,
+} = commentsApi

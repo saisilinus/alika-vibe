@@ -1,17 +1,16 @@
-import { Loader2 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Card, CardContent } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface LoadingProps {
   text?: string
-  className?: string
 }
 
-export function Loading({ text = "Loading...", className }: LoadingProps) {
+export function Loading({ text = "Loading..." }: LoadingProps) {
   return (
-    <div className={cn("flex items-center justify-center p-8", className)}>
-      <div className="flex items-center space-x-2">
-        <Loader2 className="h-6 w-6 animate-spin" />
-        <span className="text-gray-600">{text}</span>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-gray-600">{text}</p>
       </div>
     </div>
   )
@@ -19,20 +18,29 @@ export function Loading({ text = "Loading...", className }: LoadingProps) {
 
 export function LoadingCard() {
   return (
-    <div className="animate-pulse">
-      <div className="bg-gray-200 aspect-video rounded-lg mb-4"></div>
-      <div className="space-y-2">
-        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-        <div className="flex justify-between items-center">
-          <div className="h-3 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-3 bg-gray-200 rounded w-1/4"></div>
-        </div>
+    <Card className="overflow-hidden">
+      <div className="aspect-video">
+        <Skeleton className="w-full h-full" />
       </div>
-    </div>
+      <CardContent className="p-4 space-y-3">
+        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-2/3" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Skeleton className="h-6 w-6 rounded-full" />
+            <Skeleton className="h-3 w-16" />
+          </div>
+          <div className="flex space-x-4">
+            <Skeleton className="h-3 w-8" />
+            <Skeleton className="h-3 w-12" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
 export function LoadingSkeleton({ className }: { className?: string }) {
-  return <div className={cn("animate-pulse bg-gray-200 rounded", className)} />
+  return <Skeleton className={className} />
 }

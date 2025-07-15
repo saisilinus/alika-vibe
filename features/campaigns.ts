@@ -1,152 +1,124 @@
 import api from "./api"
-import type { Campaign, GeneratedBanner } from "@/lib/types"
+import type {
+  Campaign,
+  CreateCampaignRequest,
+  UpdateCampaignRequest,
+  GenerateBannerRequest,
+  GeneratedBanner,
+} from "@/lib/types"
 
-export interface CampaignQueryParams {
-  page?: number
-  limit?: number
-  category?: string
-  search?: string
-  tags?: string[]
-  sortBy?: "createdAt" | "viewCount" | "downloadCount"
-  sortOrder?: "asc" | "desc"
-}
-
-export interface CampaignResponse {
-  campaigns: Campaign[]
-  pagination: {
-    page: number
-    limit: number
-    total: number
-    pages: number
-  }
-}
-
-export interface CreateCampaignRequest {
-  title: string
-  description: string
-  imageUrl: string
-  category: string
-  tags: string[]
-  templateData?: {
-    width: number
-    height: number
-    elements: any[]
-  }
-}
-
-export interface GenerateBannerRequest {
-  campaignId: string
-  customizations: {
-    text?: string
-    colors?: string[]
-    fonts?: string[]
-  }
-}
-
-export interface GenerateBannerResponse {
-  banner: GeneratedBanner
-  imageUrl: string
-}
-
-const apiWithCampaignTags = api.enhanceEndpoints({
-  addTagTypes: ["Campaign"],
-})
-
-const campaignApi = apiWithCampaignTags.injectEndpoints({
+export const campaignsApi = api.injectEndpoints({
   endpoints: (builder) => ({
-    getCampaigns: builder.query<CampaignResponse, CampaignQueryParams>({
+    // Get all campaigns with filters
+    getCampaigns: builder.query<
+      Campaign[],
+      {
+        category?: string
+        tags?: string[]
+        search?: string
+        limit?: number
+        page?: number
+        sortBy?: "newest" | "popular" | "trending"
+      }
+    >({
       query: (params) => ({
-        url: "campaigns",
-        method: "GET",
+        url: "/campaigns",
         params,
       }),
-      providesTags: (result) =>
-        result?.campaigns
-          ? [
-              ...result.campaigns.map(({ _id }) => ({
-                type: "Campaign" as const,
-                id: _id?.toString(),
-              })),
-              { type: "Campaign", id: "PARTIAL-CAMPAIGN-LIST" },
-            ]
-          : [{ type: "Campaign", id: "PARTIAL-CAMPAIGN-LIST" }],
+      providesTags: ["Campaign"],
     }),
 
+    // Get trending campaigns
     getTrendingCampaigns: builder.query<Campaign[], { limit?: number }>({
-      query: (params) => ({
-        url: "campaigns/trending",
-        method: "GET",
-        params,
+      query: ({ limit = 10 }) => ({
+        url: "/campaigns/trending",
+        params: { limit },
       }),
-      providesTags: (result) =>
-        result
-          ? [
-              ...result.map(({ _id }) => ({
-                type: "Campaign" as const,
-                id: _id?.toString(),
-              })),
-              { type: "Campaign", id: "TRENDING-CAMPAIGNS" },
-            ]
-          : [{ type: "Campaign", id: "TRENDING-CAMPAIGNS" }],
+      providesTags: ["Campaign"],
     }),
 
+    // Get latest campaigns
     getLatestCampaigns: builder.query<Campaign[], { limit?: number }>({
-      query: (params) => ({
-        url: "campaigns/latest",
-        method: "GET",
-        params,
+      query: ({ limit = 10 }) => ({
+        url: "/campaigns/latest",
+        params: { limit },
       }),
-      providesTags: (result) =>
-        result
-          ? [
-              ...result.map(({ _id }) => ({
-                type: "Campaign" as const,
-                id: _id?.toString(),
-              })),
-              { type: "Campaign", id: "LATEST-CAMPAIGNS" },
-            ]
-          : [{ type: "Campaign", id: "LATEST-CAMPAIGNS" }],
+      providesTags: ["Campaign"],
     }),
 
+    // Get campaign by ID
     getCampaignById: builder.query<Campaign, string>({
+      query: (id) => `/campaigns/${id}`,
+      providesTags: (result, error, id) => [{ type: "Campaign", id }],
+    }),
+
+    // Get similar campaigns
+    getSimilarCampaigns: builder.query<
+      Campaign[],
+      {
+        campaignId: string
+        limit?: number
+      }
+    >({
+      query: ({ campaignId, limit = 4 }) => ({
+        url: `/campaigns/${campaignId}/similar`,
+        params: { limit },
+      }),
+      providesTags: ["Campaign"],
+    }),
+
+    // Track campaign view
+    trackCampaignView: builder.mutation<void, string>({
       query: (id) => ({
-        url: `campaigns/${id}`,
-        method: "GET",
-      }),
-      providesTags: (result) => (result ? [{ type: "Campaign", id: result._id?.toString() }] : ["Campaign"]),
-    }),
-
-    createCampaign: builder.mutation<Campaign, CreateCampaignRequest>({
-      query: (body) => ({
-        url: "campaigns",
-        method: "POST",
-        body,
-      }),
-      invalidatesTags: [
-        { type: "Campaign", id: "PARTIAL-CAMPAIGN-LIST" },
-        { type: "Campaign", id: "TRENDING-CAMPAIGNS" },
-        { type: "Campaign", id: "LATEST-CAMPAIGNS" },
-      ],
-    }),
-
-    incrementCampaignViews: builder.mutation<{ success: boolean }, string>({
-      query: (campaignId) => ({
-        url: `campaigns/${campaignId}/view`,
+        url: `/campaigns/${id}/view`,
         method: "POST",
       }),
-      invalidatesTags: (_result, _error, campaignId) => [
-        { type: "Campaign", id: campaignId },
-        { type: "Campaign", id: "TRENDING-CAMPAIGNS" },
-      ],
+      invalidatesTags: (result, error, id) => [{ type: "Campaign", id }],
     }),
 
-    generateBanner: builder.mutation<GenerateBannerResponse, GenerateBannerRequest>({
+    // Generate banner for campaign
+    generateBanner: builder.mutation<GeneratedBanner, GenerateBannerRequest>({
       query: ({ campaignId, customizations }) => ({
-        url: `campaigns/${campaignId}/generate`,
+        url: `/campaigns/${campaignId}/generate`,
         method: "POST",
         body: { customizations },
       }),
-      invalidatesTags: (_result, _error, { campaignId }) => [{ type: "Campaign", id: campaignId }],
+      invalidatesTags: ["GeneratedBanner"],
+    }),
+
+    // Create campaign (requires admin/creator role)
+    createCampaign: builder.mutation<Campaign, CreateCampaignRequest>({
+      query: (campaign) => ({
+        url: "/campaigns",
+        method: "POST",
+        body: campaign,
+      }),
+      invalidatesTags: ["Campaign"],
+    }),
+
+    // Update campaign (requires admin/creator role)
+    updateCampaign: builder.mutation<
+      Campaign,
+      {
+        id: string
+        updates: UpdateCampaignRequest
+      }
+    >({
+      query: ({ id, updates }) => ({
+        url: `/campaigns/${id}`,
+        method: "PUT",
+        body: updates,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: "Campaign", id }, "Campaign"],
+    }),
+
+    // Delete campaign (requires admin role)
+    deleteCampaign: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/campaigns/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Campaign"],
     }),
   }),
 })
@@ -156,9 +128,10 @@ export const {
   useGetTrendingCampaignsQuery,
   useGetLatestCampaignsQuery,
   useGetCampaignByIdQuery,
-  useCreateCampaignMutation,
-  useIncrementCampaignViewsMutation,
+  useGetSimilarCampaignsQuery,
+  useTrackCampaignViewMutation,
   useGenerateBannerMutation,
-} = campaignApi
-
-export default campaignApi
+  useCreateCampaignMutation,
+  useUpdateCampaignMutation,
+  useDeleteCampaignMutation,
+} = campaignsApi

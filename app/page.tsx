@@ -225,7 +225,7 @@ export default function HomePage() {
                 >
                   <div className="aspect-video relative">
                     <img
-                      src={banner.templateUrl || "/placeholder.svg"}
+                      src={banner.templateUrl || banner.imageUrl || "/placeholder.svg"}
                       alt={banner.title}
                       className="w-full h-full object-cover"
                     />
@@ -237,10 +237,10 @@ export default function HomePage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <Avatar className="h-6 w-6">
-                          <AvatarImage src="/placeholder.svg" />
-                          <AvatarFallback>U</AvatarFallback>
+                          <AvatarImage src={banner.creator?.avatar || "/placeholder.svg"} />
+                          <AvatarFallback>{banner.creator?.name?.[0] || "U"}</AvatarFallback>
                         </Avatar>
-                        <span className="text-sm text-gray-600">Creator</span>
+                        <span className="text-sm text-gray-600">{banner.creator?.name || "Creator"}</span>
                       </div>
                       <div className="flex items-center space-x-4 text-sm text-gray-500">
                         <div className="flex items-center">
@@ -290,7 +290,7 @@ export default function HomePage() {
                 >
                   <div className="aspect-video relative">
                     <img
-                      src={banner.templateUrl || "/placeholder.svg"}
+                      src={banner.templateUrl || banner.imageUrl || "/placeholder.svg"}
                       alt={banner.title}
                       className="w-full h-full object-cover"
                     />
@@ -302,10 +302,10 @@ export default function HomePage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <Avatar className="h-6 w-6">
-                          <AvatarImage src="/placeholder.svg" />
-                          <AvatarFallback>U</AvatarFallback>
+                          <AvatarImage src={banner.creator?.avatar || "/placeholder.svg"} />
+                          <AvatarFallback>{banner.creator?.name?.[0] || "U"}</AvatarFallback>
                         </Avatar>
-                        <span className="text-sm text-gray-600">Creator</span>
+                        <span className="text-sm text-gray-600">{banner.creator?.name || "Creator"}</span>
                       </div>
                       <div className="flex items-center space-x-4 text-sm text-gray-500">
                         <div className="flex items-center">

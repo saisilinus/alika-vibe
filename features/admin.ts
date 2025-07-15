@@ -1,148 +1,74 @@
 import api from "./api"
-import type { Campaign, User } from "@/lib/types"
+import type { AdminStatsResponse, AdminUsersResponse, AdminCampaignsResponse, User, Campaign } from "@/lib/types"
 
-export interface AdminStats {
-  totalUsers: number
-  totalCampaigns: number
-  totalGeneratedBanners: number
-  totalViews: number
-  totalDownloads: number
-}
-
-export interface AdminStatsResponse {
-  stats: AdminStats
-  recentCampaigns: Campaign[]
-}
-
-export interface AdminUsersResponse {
-  users: User[]
-  pagination: {
-    page: number
-    limit: number
-    total: number
-    pages: number
-  }
-}
-
-export interface AdminCampaignsResponse {
-  campaigns: Campaign[]
-  pagination: {
-    page: number
-    limit: number
-    total: number
-    pages: number
-  }
-}
-
-export interface UpdateUserRoleRequest {
-  userId: string
-  role: "user" | "admin" | "moderator"
-}
-
-export interface UpdateCampaignRequest {
-  campaignId: string
-  updates: Partial<Campaign>
-}
-
-const apiWithAdminTags = api.enhanceEndpoints({
-  addTagTypes: ["AdminStats", "AdminUsers", "AdminCampaigns"],
-})
-
-const adminApi = apiWithAdminTags.injectEndpoints({
+export const adminApi = api.injectEndpoints({
   endpoints: (builder) => ({
+    // Get admin statistics - uses existing endpoint
     getAdminStats: builder.query<AdminStatsResponse, void>({
-      query: () => ({
-        url: "admin/stats",
-        method: "GET",
-      }),
+      query: () => "/admin/stats",
       providesTags: ["AdminStats"],
     }),
 
-    getAdminUsers: builder.query<AdminUsersResponse, { page?: number; limit?: number; search?: string }>({
-      query: (params) => ({
-        url: "admin/users",
-        method: "GET",
-        params,
-      }),
-      providesTags: (result) =>
-        result?.users
-          ? [
-              ...result.users.map(({ _id }) => ({
-                type: "AdminUsers" as const,
-                id: _id?.toString(),
-              })),
-              { type: "AdminUsers", id: "PARTIAL-USERS-LIST" },
-            ]
-          : [{ type: "AdminUsers", id: "PARTIAL-USERS-LIST" }],
+    // Get all users for admin - would need to be implemented
+    getAdminUsers: builder.query<AdminUsersResponse, void>({
+      query: () => "/admin/users",
+      providesTags: ["AdminUsers"],
     }),
 
-    getAdminCampaigns: builder.query<AdminCampaignsResponse, { page?: number; limit?: number; search?: string }>({
-      query: (params) => ({
-        url: "admin/campaigns",
-        method: "GET",
-        params,
-      }),
-      providesTags: (result) =>
-        result?.campaigns
-          ? [
-              ...result.campaigns.map(({ _id }) => ({
-                type: "AdminCampaigns" as const,
-                id: _id?.toString(),
-              })),
-              { type: "AdminCampaigns", id: "PARTIAL-ADMIN-CAMPAIGNS-LIST" },
-            ]
-          : [{ type: "AdminCampaigns", id: "PARTIAL-ADMIN-CAMPAIGNS-LIST" }],
+    // Get all campaigns for admin - would need to be implemented
+    getAdminCampaigns: builder.query<AdminCampaignsResponse, void>({
+      query: () => "/admin/campaigns",
+      providesTags: ["AdminCampaigns"],
     }),
 
-    updateUserRole: builder.mutation<{ success: boolean }, UpdateUserRoleRequest>({
+    // Update user role - would need to be implemented
+    updateUserRole: builder.mutation<
+      User,
+      {
+        userId: string
+        role: string
+      }
+    >({
       query: ({ userId, role }) => ({
-        url: `admin/users/${userId}/role`,
-        method: "PATCH",
+        url: `/admin/users/${userId}/role`,
+        method: "PUT",
         body: { role },
       }),
-      invalidatesTags: (_result, _error, { userId }) => [
-        { type: "AdminUsers", id: userId },
-        { type: "AdminUsers", id: "PARTIAL-USERS-LIST" },
-        "AdminStats",
-      ],
+      invalidatesTags: ["AdminUsers"],
     }),
 
-    updateCampaign: builder.mutation<{ success: boolean }, UpdateCampaignRequest>({
-      query: ({ campaignId, updates }) => ({
-        url: `admin/campaigns/${campaignId}`,
-        method: "PATCH",
-        body: updates,
-      }),
-      invalidatesTags: (_result, _error, { campaignId }) => [
-        { type: "AdminCampaigns", id: campaignId },
-        { type: "AdminCampaigns", id: "PARTIAL-ADMIN-CAMPAIGNS-LIST" },
-        "AdminStats",
-      ],
-    }),
-
-    deleteCampaign: builder.mutation<{ success: boolean }, string>({
-      query: (campaignId) => ({
-        url: `admin/campaigns/${campaignId}`,
+    // Delete user - would need to be implemented
+    deleteUser: builder.mutation<void, string>({
+      query: (userId) => ({
+        url: `/admin/users/${userId}`,
         method: "DELETE",
       }),
-      invalidatesTags: (_result, _error, campaignId) => [
-        { type: "AdminCampaigns", id: campaignId },
-        { type: "AdminCampaigns", id: "PARTIAL-ADMIN-CAMPAIGNS-LIST" },
-        "AdminStats",
-      ],
+      invalidatesTags: ["AdminUsers"],
     }),
 
-    toggleCampaignStatus: builder.mutation<{ success: boolean }, { campaignId: string; isActive: boolean }>({
-      query: ({ campaignId, isActive }) => ({
-        url: `admin/campaigns/${campaignId}/status`,
-        method: "PATCH",
-        body: { isActive },
+    // Update campaign status - would need to be implemented
+    updateCampaignStatus: builder.mutation<
+      Campaign,
+      {
+        campaignId: string
+        status: string
+      }
+    >({
+      query: ({ campaignId, status }) => ({
+        url: `/admin/campaigns/${campaignId}/status`,
+        method: "PUT",
+        body: { status },
       }),
-      invalidatesTags: (_result, _error, { campaignId }) => [
-        { type: "AdminCampaigns", id: campaignId },
-        { type: "AdminCampaigns", id: "PARTIAL-ADMIN-CAMPAIGNS-LIST" },
-        "AdminStats",
-      ],
+      invalidatesTags: ["AdminCampaigns", "Campaign"],
+    }),
+
+    // Delete campaign (admin) - would need to be implemented
+    deleteAdminCampaign: builder.mutation<void, string>({
+      query: (campaignId) => ({
+        url: `/admin/campaigns/${campaignId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["AdminCampaigns", "Campaign"],
     }),
   }),
 })
@@ -152,9 +78,7 @@ export const {
   useGetAdminUsersQuery,
   useGetAdminCampaignsQuery,
   useUpdateUserRoleMutation,
-  useUpdateCampaignMutation,
-  useDeleteCampaignMutation,
-  useToggleCampaignStatusMutation,
+  useDeleteUserMutation,
+  useUpdateCampaignStatusMutation,
+  useDeleteAdminCampaignMutation,
 } = adminApi
-
-export default adminApi

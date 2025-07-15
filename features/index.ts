@@ -1,14 +1,31 @@
-// Export all API endpoints
+// Export all API slices and hooks
+export * from "./api"
 export * from "./campaigns"
 export * from "./admin"
 export * from "./auth"
 export * from "./comments"
 export * from "./generated-banners"
 
-// Export default APIs
-export { default as campaignApi } from "./campaigns"
-export { default as adminApi } from "./admin"
-export { default as authApi } from "./auth"
-export { default as commentApi } from "./comments"
-export { default as generatedBannerApi } from "./generated-banners"
-export { default as api } from "./api"
+// Re-export commonly used hooks for convenience
+export {
+  // Campaign hooks
+  useGetCampaignsQuery,
+  useGetTrendingCampaignsQuery,
+  useGetLatestCampaignsQuery,
+  useGetCampaignByIdQuery,
+  useGetSimilarCampaignsQuery,
+  useCreateCampaignMutation,
+  useTrackCampaignViewMutation,
+  useGenerateBannerMutation,
+  // Admin hooks
+  useGetAdminStatsQuery,
+  useGetAdminUsersQuery,
+  useGetAdminCampaignsQuery,
+  // Comment hooks
+  useGetCommentsQuery,
+  useCreateCommentMutation,
+  useLikeCommentMutation,
+  // Generated banner hooks
+  useGetUserBannersQuery,
+  useDownloadBannerMutation,
+} from "./campaigns"
